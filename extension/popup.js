@@ -14,7 +14,31 @@ async function checkPage() {
   }
 
   document.getElementById('statusText').textContent = 'Ready to extract!';
+  document.getElementById('status').classList.add('ready');
   return true;
+}
+
+// Get file extension for language
+function getFileExtension(language) {
+  const languageMap = {
+    'python': 'py',
+    'javascript': 'js',
+    'typescript': 'ts',
+    'go': 'go',
+    'sql': 'sql',
+    'c': 'c',
+    'cpp': 'cpp',
+    'rust': 'rs',
+    'java': 'java',
+    'shell': 'sh',
+    'json': 'json',
+    'yaml': 'yaml',
+    'markdown': 'md',
+    'html': 'html',
+    'css': 'css'
+  };
+
+  return languageMap[language?.toLowerCase()] || 'txt';
 }
 
 // Format data for download
@@ -25,6 +49,7 @@ function formatData(data, format) {
     let markdown = `# ${data.title || 'Boot.dev Content'}
 
 **Type:** ${data.type}
+**Language:** ${data.language || 'Unknown'}
 **URL:** ${data.url}
 **Extracted:** ${new Date(data.timestamp).toLocaleString()}
 
@@ -52,7 +77,8 @@ ${data.description || 'Not found'}
     if (data.examples && data.examples.length > 0) {
       markdown += `## Examples\n\n`;
       data.examples.forEach(example => {
-        markdown += `\`\`\`\n${example.code}\n\`\`\`\n\n`;
+        const lang = example.language || data.language || '';
+        markdown += `\`\`\`${lang}\n${example.code}\n\`\`\`\n\n`;
       });
     }
 
@@ -60,18 +86,20 @@ ${data.description || 'Not found'}
     if (data.allFiles && data.allFiles.length > 0) {
       markdown += `## Code Files\n\n`;
       data.allFiles.forEach(file => {
+        const lang = file.language || data.language || '';
         markdown += `### ${file.fileName}\n\n`;
-        markdown += `\`\`\`python\n${file.code}\n\`\`\`\n\n`;
+        markdown += `\`\`\`${lang}\n${file.code}\n\`\`\`\n\n`;
       });
     } else {
       // Fallback to old format
+      const lang = data.language || 'python';
       markdown += `## Starter Code
-\`\`\`python
+\`\`\`${lang}
 ${data.starterCode || 'Not found'}
 \`\`\`
 
 ## Test Code
-\`\`\`python
+\`\`\`${lang}
 ${data.testCode || 'Not found'}
 \`\`\`
 `;
@@ -79,8 +107,9 @@ ${data.testCode || 'Not found'}
 
     // Add user's current code if different from starter
     if (data.userCode && data.userCode !== data.starterCode && data.userCode.trim() !== 'pass') {
+      const lang = data.language || 'python';
       markdown += `## My Solution Attempt
-\`\`\`python
+\`\`\`${lang}
 ${data.userCode}
 \`\`\`
 
@@ -89,8 +118,9 @@ ${data.userCode}
 
     // Add official solution if available
     if (data.solution && !data.solution.includes('not available')) {
+      const lang = data.language || 'python';
       markdown += `## Official Solution
-\`\`\`python
+\`\`\`${lang}
 ${data.solution}
 \`\`\`
 
@@ -106,6 +136,7 @@ ${data.solution}
 ${'='.repeat(50)}
 
 Type: ${data.type}
+Language: ${data.language || 'Unknown'}
 URL: ${data.url}
 Extracted: ${new Date(data.timestamp).toLocaleString()}
 
@@ -202,7 +233,7 @@ async function extractContent() {
       const preview = document.getElementById('preview');
       preview.style.display = 'block';
 
-      let previewText = `Title: ${currentData.title || 'N/A'}\nType: ${currentData.type}`;
+      let previewText = `Title: ${currentData.title || 'N/A'}\nType: ${currentData.type}\nLanguage: ${currentData.language || 'Unknown'}`;
       if (currentData.allFiles && currentData.allFiles.length > 0) {
         previewText += `\nFiles: ${currentData.allFiles.map(f => f.fileName).join(', ')}`;
       }

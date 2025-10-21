@@ -22,8 +22,12 @@ function extractContent() {
     notes: [],
     allFiles: [],
     userCode: '',
-    solution: ''
+    solution: '',
+    language: 'python' // default fallback
   };
+
+  // Detect programming language from URL or page content
+  data.language = detectLanguage(url);
 
   // Extract from the viewer div (markdown content on the left side)
   const viewerDiv = document.querySelector('.viewer');
@@ -77,21 +81,32 @@ function extractContent() {
       });
     });
 
-    // Get code examples from pre/code blocks
+    // Get code examples from pre/code blocks and detect their language
     const codeBlocks = viewerDiv.querySelectorAll('pre code');
     codeBlocks.forEach((codeBlock, index) => {
       const code = codeBlock.textContent.trim();
       if (code) {
+        // Try to detect language from class name
+        const className = codeBlock.className;
+        let exampleLang = data.language; // default to detected language
+
+        if (className) {
+          const langMatch = className.match(/language-(\w+)/);
+          if (langMatch) {
+            exampleLang = langMatch[1];
+          }
+        }
+
         data.examples.push({
           index: index + 1,
-          code: code
+          code: code,
+          language: exampleLang
         });
       }
     });
   }
 
   // Extract code from all CodeMirror editors (multiple tabs)
-  // Try multiple methods to get the complete code
   const allEditors = document.querySelectorAll('.cm-content[role="textbox"]');
   const codeFiles = [];
 
@@ -100,7 +115,6 @@ function extractContent() {
 
     // Method 1: Try to get from CodeMirror state (most reliable)
     try {
-      // Look for the CodeMirror view instance
       const cmView = editor.cmView?.view;
       if (cmView && cmView.state && cmView.state.doc) {
         code = cmView.state.doc.toString();
@@ -126,28 +140,37 @@ function extractContent() {
 
     // Try to determine which file this is based on the tab
     const tabs = document.querySelectorAll('[role="tab"]');
-    let fileName = `file_${index}.py`;
+    let fileName = `file_${index}`;
+    let fileLanguage = data.language;
+
     if (tabs[index]) {
       const tabText = tabs[index].textContent.trim();
       if (tabText) {
         fileName = tabText;
+        // Detect language from file extension
+        fileLanguage = detectLanguageFromFilename(fileName) || data.language;
       }
     }
 
     codeFiles.push({
       fileName: fileName,
       code: code,
+      language: fileLanguage,
       isActive: editor.closest('.w-full')?.style.display !== 'none'
     });
   });
 
   // Separate starter code and test code
-  const starterFile = codeFiles.find(f => f.fileName.includes('main.py') && !f.fileName.includes('test'));
+  const starterFile = codeFiles.find(f =>
+    (f.fileName.includes('main') || f.fileName.includes('index') || f.fileName.includes('solution'))
+    && !f.fileName.includes('test')
+  );
   const testFile = codeFiles.find(f => f.fileName.includes('test'));
 
   if (starterFile) {
     data.starterCode = starterFile.code;
     data.userCode = starterFile.code;
+    data.language = starterFile.language;
   }
 
   if (testFile) {
@@ -178,6 +201,93 @@ function extractContent() {
   }
 
   return data;
+}
+
+// Detect programming language from URL or page content
+function detectLanguage(url) {
+  // Check URL for course indicators
+  if (url.includes('/learn-python') || url.includes('python')) return 'python';
+  if (url.includes('/learn-javascript') || url.includes('javascript')) return 'javascript';
+  if (url.includes('/learn-typescript') || url.includes('typescript')) return 'typescript';
+  if (url.includes('/learn-go') || url.includes('golang')) return 'go';
+  if (url.includes('/learn-sql') || url.includes('sql')) return 'sql';
+  if (url.includes('/learn-c')) return 'c';
+  if (url.includes('/learn-cpp')) return 'cpp';
+  if (url.includes('/learn-rust')) return 'rust';
+  if (url.includes('/learn-java')) return 'java';
+  if (url.includes('/learn-shell')) return 'shell';
+
+  // Try to detect from page title
+  const titleElement = document.querySelector('title');
+  if (titleElement) {
+    const title = titleElement.textContent.toLowerCase();
+    if (title.includes('python')) return 'python';
+    if (title.includes('javascript')) return 'javascript';
+    if (title.includes('typescript')) return 'typescript';
+    if (title.includes('golang') || title.includes('go ')) return 'go';
+    if (title.includes('sql')) return 'sql';
+    if (title.includes('rust')) return 'rust';
+    if (title.includes('java')) return 'java';
+  }
+
+  // Default to python if can't detect
+  return 'python';
+}
+
+// Detect language from filename
+function detectLanguageFromFilename(filename) {
+  const ext = filename.split('.').pop().toLowerCase();
+
+  const extensionMap = {
+    'py': 'python',
+    'js': 'javascript',
+    'ts': 'typescript',
+    'go': 'go',
+    'sql': 'sql',
+    'c': 'c',
+    'cpp': 'cpp',
+    'cc': 'cpp',
+    'h': 'c',
+    'hpp': 'cpp',
+    'rs': 'rust',
+    'java': 'java',
+    'sh': 'shell',
+    'bash': 'shell',
+    'zsh': 'shell',
+    'jsx': 'javascript',
+    'tsx': 'typescript',
+    'json': 'json',
+    'yaml': 'yaml',
+    'yml': 'yaml',
+    'md': 'markdown',
+    'html': 'html',
+    'css': 'css'
+  };
+
+  return extensionMap[ext] || null;
+}
+
+// Get file extension for language
+function getFileExtension(language) {
+  const languageMap = {
+    'python': 'py',
+    'javascript': 'js',
+    'typescript': 'ts',
+    'go': 'go',
+    'sql': 'sql',
+    'c': 'c',
+    'cpp': 'cpp',
+    'rust': 'rs',
+    'java': 'java',
+    'shell': 'sh',
+    'json': 'json',
+    'yaml': 'yaml',
+    'markdown': 'md',
+    'html': 'html',
+    'css': 'css'
+  };
+
+  return languageMap[language.toLowerCase()] || 'txt';
 }
 
 // Listen for messages from popup
