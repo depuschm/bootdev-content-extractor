@@ -1,4 +1,8 @@
 // Content script that extracts data from Boot.dev pages
+// Cross-browser compatible version
+
+// Get the correct API (browser or chrome wrapped in Promise)
+const api = window.browserAPI || browser || chrome;
 
 // Extract code from a single editor using advanced scrolling technique
 async function extractCodeFromEditor(editor, config = {}) {
@@ -135,8 +139,8 @@ async function extractContent() {
     return null;
   }
 
-  // Get settings
-  const settings = await chrome.storage.sync.get({
+  // Get settings - use Promise-based API
+  const settings = await api.storage.sync.get({
     extractSolution: true,
     includeMetadata: true
   });
@@ -259,7 +263,7 @@ async function extractAllTabs(data) {
   // Process each tab
   for (let i = 0; i < tabButtons.length; i++) {
     const btn = tabButtons[i];
-    console.log(`\n📑 Processing tab #${i + 1}...`);
+    console.log(`\n🔒 Processing tab #${i + 1}...`);
 
     // Click tab to activate it
     btn.click();
@@ -345,7 +349,7 @@ async function extractSolution(data) {
     if (mergeView) {
       const editors = mergeView.querySelectorAll('.cm-mergeViewEditor .cm-editor');
       if (editors.length >= 2) {
-        console.log('\n💡 Solution view detected — capturing right-side editor...');
+        console.log('\n💡 Solution view detected – capturing right-side editor...');
         const rightEditor = editors[1];
         const solutionCode = await extractCodeFromEditor(rightEditor);
 
@@ -467,8 +471,8 @@ function detectLanguageFromFilename(filename) {
   return extensionMap[ext] || null;
 }
 
-// Listen for messages from popup
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+// Listen for messages from popup - cross-browser compatible
+api.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'extract') {
     // Use async function and sendResponse
     extractContent().then(content => {

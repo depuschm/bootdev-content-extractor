@@ -1,8 +1,10 @@
-// Options page script
+// Options page script - Cross-browser compatible
+// Get the correct API (browser or chrome wrapped in Promise)
+const api = window.browserAPI || (typeof browser !== 'undefined' ? browser : chrome);
 
 // Load saved settings
 async function loadSettings() {
-  const settings = await chrome.storage.sync.get({
+  const settings = await api.storage.sync.get({
     format: 'markdown',
     extractSolution: true,
     includeMetadata: true
@@ -22,7 +24,7 @@ async function saveSettings() {
   };
 
   try {
-    await chrome.storage.sync.set(settings);
+    await api.storage.sync.set(settings);
 
     // Show success message
     const status = document.getElementById('status');

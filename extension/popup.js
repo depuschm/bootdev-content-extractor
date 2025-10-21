@@ -1,9 +1,13 @@
-// Popup script
+// Popup script - Cross-browser compatible
+// Get the correct API (browser or chrome wrapped in Promise)
+const api = window.browserAPI || (typeof browser !== 'undefined' ? browser : chrome);
+
 let currentData = null;
 
 // Check if we're on a valid page
 async function checkPage() {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const tabs = await api.tabs.query({ active: true, currentWindow: true });
+  const tab = tabs[0];
 
   if (!tab.url.includes('boot.dev/challenges/') && !tab.url.includes('boot.dev/lessons/')) {
     document.getElementById('statusText').textContent = 'Not on a Boot.dev challenge or lesson page';
@@ -43,10 +47,9 @@ function getFileExtension(language) {
 
 // Format data for download
 function formatData(data, format) {
-  const includeMetadata = data.includeMetadata !== false; // default to true if not specified
+  const includeMetadata = data.includeMetadata !== false;
 
   if (format === 'json') {
-    // For JSON, only include metadata fields if includeMetadata is true
     const jsonData = {
       title: data.title || 'Boot.dev Content',
       type: data.type,
@@ -62,7 +65,6 @@ function formatData(data, format) {
       solution: data.solution || ''
     };
 
-    // Add metadata fields only if includeMetadata is true
     if (includeMetadata) {
       jsonData.url = data.url;
       jsonData.timestamp = data.timestamp;
@@ -72,7 +74,6 @@ function formatData(data, format) {
   } else if (format === 'markdown') {
     let markdown = `# ${data.title || 'Boot.dev Content'}\n\n`;
 
-    // Add metadata section only if includeMetadata is true
     if (includeMetadata) {
       markdown += `**Type:** ${data.type}\n`;
       markdown += `**Language:** ${data.language || 'Unknown'}\n`;
@@ -109,7 +110,6 @@ function formatData(data, format) {
       });
     }
 
-    // Add all code files if available
     if (data.allFiles && data.allFiles.length > 0) {
       markdown += `## Code Files\n\n`;
       data.allFiles.forEach(file => {
@@ -118,19 +118,16 @@ function formatData(data, format) {
         markdown += `\`\`\`${lang}\n${file.code}\n\`\`\`\n\n`;
       });
     } else {
-      // Fallback to old format
       const lang = data.language || 'python';
       markdown += `## Starter Code\n\`\`\`${lang}\n${data.starterCode || 'Not found'}\n\`\`\`\n\n`;
       markdown += `## Test Code\n\`\`\`${lang}\n${data.testCode || 'Not found'}\n\`\`\`\n\n`;
     }
 
-    // Add user's current code if different from starter
     if (data.userCode && data.userCode !== data.starterCode && data.userCode.trim() !== 'pass') {
       const lang = data.language || 'python';
       markdown += `## My Solution Attempt\n\`\`\`${lang}\n${data.userCode}\n\`\`\`\n\n`;
     }
 
-    // Add official solution if available
     if (data.solution && !data.solution.includes('not available')) {
       const lang = data.language || 'python';
       markdown += `## Official Solution\n\`\`\`${lang}\n${data.solution}\n\`\`\`\n\n`;
@@ -141,7 +138,6 @@ function formatData(data, format) {
   } else if (format === 'text') {
     let text = `${data.title || 'Boot.dev Content'}\n${'='.repeat(50)}\n\n`;
 
-    // Add metadata only if includeMetadata is true
     if (includeMetadata) {
       text += `Type: ${data.type}\n`;
       text += `Language: ${data.language || 'Unknown'}\n`;
@@ -177,24 +173,20 @@ function formatData(data, format) {
       });
     }
 
-    // Add all code files if available
     if (data.allFiles && data.allFiles.length > 0) {
       text += `CODE FILES:\n\n`;
       data.allFiles.forEach(file => {
         text += `${file.fileName}:\n${file.code}\n\n`;
       });
     } else {
-      // Fallback to old format
       text += `STARTER CODE:\n${data.starterCode || 'Not found'}\n\n`;
       text += `TEST CODE:\n${data.testCode || 'Not found'}\n\n`;
     }
 
-    // Add user's current code if different from starter
     if (data.userCode && data.userCode !== data.starterCode && data.userCode.trim() !== 'pass') {
       text += `MY SOLUTION ATTEMPT:\n${data.userCode}\n\n`;
     }
 
-    // Add official solution if available
     if (data.solution && !data.solution.includes('not available')) {
       text += `OFFICIAL SOLUTION:\n${data.solution}\n\n`;
     }
@@ -217,16 +209,16 @@ function downloadFile(content, filename, format) {
 
 // Extract content
 async function extractContent() {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const tabs = await api.tabs.query({ active: true, currentWindow: true });
+  const tab = tabs[0];
 
   try {
-    const response = await chrome.tabs.sendMessage(tab.id, { action: 'extract' });
+    const response = await api.tabs.sendMessage(tab.id, { action: 'extract' });
 
     if (response && response.success && response.data) {
       currentData = response.data;
       document.getElementById('statusText').textContent = 'Content extracted successfully!';
 
-      // Show preview
       const preview = document.getElementById('preview');
       preview.style.display = 'block';
 
@@ -255,8 +247,7 @@ async function handleDownload() {
     if (!extracted) return;
   }
 
-  // Get format preference from storage
-  const settings = await chrome.storage.sync.get({ format: 'markdown' });
+  const settings = await api.storage.sync.get({ format: 'markdown' });
   const format = settings.format;
 
   const content = formatData(currentData, format);
@@ -282,7 +273,7 @@ async function handleCopy() {
     if (!extracted) return;
   }
 
-  const settings = await chrome.storage.sync.get({ format: 'markdown' });
+  const settings = await api.storage.sync.get({ format: 'markdown' });
   const format = settings.format;
   const content = formatData(currentData, format);
 
@@ -303,7 +294,12 @@ document.getElementById('extractBtn').addEventListener('click', extractContent);
 document.getElementById('downloadBtn').addEventListener('click', handleDownload);
 document.getElementById('copyBtn').addEventListener('click', handleCopy);
 document.getElementById('optionsBtn').addEventListener('click', () => {
-  chrome.runtime.openOptionsPage();
+  if (api.runtime.openOptionsPage) {
+    api.runtime.openOptionsPage();
+  } else {
+    // Fallback for browsers that don't support openOptionsPage
+    window.open(api.runtime.getURL('options.html'));
+  }
 });
 
 // Initialize

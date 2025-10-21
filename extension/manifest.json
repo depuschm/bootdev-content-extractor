@@ -12,7 +12,11 @@
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_icon": "icon.svg"
+    "default_icon": {
+      "16": "icon.svg",
+      "48": "icon.svg",
+      "128": "icon.svg"
+    }
   },
   "content_scripts": [
     {
@@ -21,8 +25,10 @@
         "https://www.boot.dev/lessons/*"
       ],
       "js": [
+        "browser-polyfill.js",
         "content.js"
-      ]
+      ],
+      "run_at": "document_idle"
     }
   ],
   "options_page": "options.html",
@@ -30,5 +36,11 @@
     "16": "icon.svg",
     "48": "icon.svg",
     "128": "icon.svg"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "bootdev-extractor@example.com",
+      "strict_min_version": "109.0"
+    }
   }
 }
