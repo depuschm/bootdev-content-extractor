@@ -23,6 +23,8 @@
       --yellow-700: #905a0a;
       --green-600: #11e956;
       --green-700: #0db543;
+      --blue-500: #5865f2;
+      --blue-600: #4752c4;
     }
     
     * {
@@ -116,7 +118,7 @@
       font-size: 14px;
     }
     
-    select {
+    select, input[type="text"] {
       width: 100%;
       padding: 10px 12px;
       border: 2px solid var(--gray-700);
@@ -129,11 +131,15 @@
       font-family: 'DMSans', sans-serif;
     }
     
-    select:hover {
+    input[type="text"] {
+      cursor: text;
+    }
+    
+    select:hover, input[type="text"]:hover {
       border-color: var(--gray-600);
     }
     
-    select:focus {
+    select:focus, input[type="text"]:focus {
       outline: none;
       border-color: var(--yellow-600);
       box-shadow: 0 0 0 3px rgba(239, 187, 3, 0.1);
@@ -174,7 +180,51 @@
       color: var(--gray-500);
       margin-top: 8px;
       line-height: 1.5;
-      padding-left: 32px;
+    }
+    
+    .instructions {
+      background: var(--gray-800);
+      border-left: 4px solid var(--blue-500);
+      padding: 16px;
+      border-radius: 6px;
+      margin-bottom: 20px;
+    }
+    
+    .instructions-title {
+      font-weight: 700;
+      color: var(--blue-500);
+      margin-bottom: 12px;
+      font-size: 14px;
+    }
+    
+    .instructions ol {
+      margin-left: 20px;
+      line-height: 1.8;
+      font-size: 13px;
+      color: var(--gray-400);
+    }
+    
+    .instructions li {
+      margin-bottom: 8px;
+    }
+    
+    .instructions a {
+      color: var(--blue-500);
+      text-decoration: none;
+      font-weight: 600;
+    }
+    
+    .instructions a:hover {
+      text-decoration: underline;
+    }
+    
+    .instructions code {
+      background: var(--gray-900);
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 12px;
+      color: var(--yellow-500);
+      font-family: 'Courier New', monospace;
     }
     
     button {
@@ -214,6 +264,24 @@
       transform: translateY(0);
     }
     
+    button.secondary {
+      background: var(--gray-800);
+      border-color: var(--gray-700);
+      color: var(--gray-200);
+      margin-left: 12px;
+    }
+    
+    button.secondary:hover {
+      background: var(--gray-750);
+      border-color: var(--gray-600);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+    
+    .button-group {
+      display: flex;
+      align-items: center;
+    }
+    
     .status {
       margin-top: 20px;
       padding: 12px 16px;
@@ -241,6 +309,12 @@
       border: 1px solid var(--green-700);
     }
     
+    .status.error {
+      background: rgba(237, 66, 69, 0.1);
+      color: #ed4245;
+      border: 1px solid #cd1316;
+    }
+    
     .footer {
       margin-top: 48px;
       padding-top: 24px;
@@ -264,6 +338,56 @@
   </div>
   
   <div class="container">
+    <!-- Notion Integration Section -->
+    <div class="section">
+      <div class="section-title">🔗 Notion Integration</div>
+      
+      <div class="instructions">
+        <div class="instructions-title">📝 Setup Instructions:</div>
+        <ol>
+          <li>Go to <a href="https://www.notion.so/my-integrations" target="_blank">notion.so/my-integrations</a></li>
+          <li>Click <strong>"+ New integration"</strong></li>
+          <li>Name it (e.g., "Boot.dev Content Extractor") and select your workspace</li>
+          <li>Go to the <strong>Configuration</strong> tab and copy the <strong>Internal Integration Secret</strong> (starts with <code>ntn_</code>)</li>
+          <li>Create a new <strong>database</strong> in Notion (Full page recommended)</li>
+          <li>Add these columns to your database for better organization:
+            <ul style="margin-top: 8px; margin-left: 20px; color: var(--gray-500); font-size: 12px;">
+              <li><strong>Type</strong> - Property type: Select</li>
+              <li><strong>Language</strong> - Property type: Select</li>
+              <li><strong>URL</strong> - Property type: URL</li>
+            </ul>
+          </li>
+          <li>Click the <strong>"..."</strong> menu in the top-right corner of your database</li>
+          <li>Scroll down to <strong>"+ Add connections"</strong></li>
+          <li>Search for and select your integration</li>
+          <li>Confirm the integration can access the database</li>
+          <li>Copy the <strong>Database ID</strong> from the URL (32-character code)</li>
+          <li>Paste both values below and test the connection</li>
+        </ol>
+      </div>
+      
+      <div class="option">
+        <div class="checkbox-option">
+          <input type="checkbox" id="notionEnabled">
+          <label for="notionEnabled">Enable Notion integration</label>
+        </div>
+        <p class="description">Send extracted content directly to your Notion database</p>
+      </div>
+      
+      <div class="option">
+        <label for="notionToken">Internal Integration Secret:</label>
+        <input type="text" id="notionToken" placeholder="ntn_xxxxxxxxxxxxxxxxxxxxx">
+        <p class="description">Your Notion integration token (keep this secret!)</p>
+      </div>
+      
+      <div class="option">
+        <label for="notionDatabaseId">Database ID:</label>
+        <input type="text" id="notionDatabaseId" placeholder="2935ad11635b803bb19bc6609fae61bb">
+        <p class="description">The ID of your Challenges database</p>
+      </div>
+    </div>
+    
+    <!-- Export Format Section -->
     <div class="section">
       <div class="section-title">Export Format</div>
       
@@ -278,6 +402,7 @@
       </div>
     </div>
     
+    <!-- Extraction Options Section -->
     <div class="section">
       <div class="section-title">Extraction Options</div>
       
@@ -298,17 +423,21 @@
       </div>
     </div>
     
-    <button id="saveBtn">Save Settings</button>
+    <div class="button-group">
+      <button id="saveBtn">Save Settings</button>
+      <button id="testBtn" class="secondary">Test Notion Connection</button>
+    </div>
     
     <div id="status" class="status"></div>
     
     <div class="footer">
-      <strong>Boot.dev Content Extractor</strong> v1.0.0<br>
+      <strong>Boot.dev Content Extractor</strong> v1.1.0<br>
       Extract and save your coding challenges and lessons
     </div>
   </div>
   
   <script src="browser-polyfill.js"></script>
+  <script src="notion-api.js"></script>
   <script src="options.js"></script>
 </body>
 </html>

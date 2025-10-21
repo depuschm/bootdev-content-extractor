@@ -14,12 +14,36 @@ async function checkPage() {
     document.getElementById('extractBtn').disabled = true;
     document.getElementById('downloadBtn').disabled = true;
     document.getElementById('copyBtn').disabled = true;
+    document.getElementById('notionBtn').disabled = true;
     return false;
   }
 
   document.getElementById('statusText').textContent = 'Ready to extract!';
   document.getElementById('status').classList.add('ready');
+
+  // Check if Notion is configured
+  await checkNotionConfig();
+
   return true;
+}
+
+// Check Notion configuration
+async function checkNotionConfig() {
+  const settings = await api.storage.sync.get({
+    notionEnabled: false,
+    notionToken: '',
+    notionDatabaseId: ''
+  });
+
+  const notionBtn = document.getElementById('notionBtn');
+
+  if (!settings.notionEnabled || !settings.notionToken || !settings.notionDatabaseId) {
+    notionBtn.disabled = true;
+    notionBtn.textContent = '📝 Configure Notion in Options';
+  } else {
+    notionBtn.disabled = false;
+    notionBtn.textContent = '📝 Send to Notion';
+  }
 }
 
 // Get file extension for language
@@ -240,6 +264,65 @@ async function extractContent() {
   }
 }
 
+// Send to Notion
+async function handleNotionExport() {
+  // Extract content if not already done
+  if (!currentData) {
+    const extracted = await extractContent();
+    if (!extracted) return;
+  }
+
+  // Get Notion settings
+  const settings = await api.storage.sync.get({
+    notionEnabled: false,
+    notionToken: '',
+    notionDatabaseId: ''
+  });
+
+  if (!settings.notionEnabled || !settings.notionToken || !settings.notionDatabaseId) {
+    document.getElementById('error').textContent = 'Notion not configured. Please configure in Options.';
+    document.getElementById('error').style.display = 'block';
+    return;
+  }
+
+  // Show loading state
+  const notionBtn = document.getElementById('notionBtn');
+  const originalText = notionBtn.textContent;
+  notionBtn.textContent = '⏳ Sending to Notion...';
+  notionBtn.disabled = true;
+
+  try {
+    // Send to Notion
+    const result = await NotionAPI.createPage(
+      settings.notionToken,
+      settings.notionDatabaseId,
+      currentData
+    );
+
+    // Show success
+    document.getElementById('statusText').textContent = 'Sent to Notion successfully!';
+    notionBtn.textContent = '✓ Sent to Notion!';
+
+    setTimeout(() => {
+      notionBtn.textContent = originalText;
+      notionBtn.disabled = false;
+      document.getElementById('statusText').textContent = 'Ready to extract!';
+    }, 3000);
+
+  } catch (error) {
+    console.error('Notion export error:', error);
+    document.getElementById('error').textContent = `Failed to send to Notion: ${error.message}`;
+    document.getElementById('error').style.display = 'block';
+
+    notionBtn.textContent = originalText;
+    notionBtn.disabled = false;
+
+    setTimeout(() => {
+      document.getElementById('error').style.display = 'none';
+    }, 5000);
+  }
+}
+
 // Download handler
 async function handleDownload() {
   if (!currentData) {
@@ -291,6 +374,7 @@ async function handleCopy() {
 
 // Event listeners
 document.getElementById('extractBtn').addEventListener('click', extractContent);
+document.getElementById('notionBtn').addEventListener('click', handleNotionExport);
 document.getElementById('downloadBtn').addEventListener('click', handleDownload);
 document.getElementById('copyBtn').addEventListener('click', handleCopy);
 document.getElementById('optionsBtn').addEventListener('click', () => {

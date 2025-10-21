@@ -1,14 +1,15 @@
 {
   "manifest_version": 3,
   "name": "Boot.dev Content Extractor",
-  "version": "1.0.0",
-  "description": "Extract challenges and lessons from Boot.dev",
+  "version": "1.1.0",
+  "description": "Extract challenges and lessons from Boot.dev and send to Notion",
   "permissions": [
     "activeTab",
     "storage"
   ],
   "host_permissions": [
-    "https://www.boot.dev/*"
+    "https://www.boot.dev/*",
+    "https://api.notion.com/*"
   ],
   "action": {
     "default_popup": "popup.html",

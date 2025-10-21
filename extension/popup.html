@@ -22,6 +22,8 @@
       --yellow-700: #905a0a;
       --red-500: #ed4245;
       --red-700: #cd1316;
+      --blue-500: #5865f2;
+      --blue-600: #4752c4;
     }
     
     * {
@@ -163,6 +165,23 @@
       box-shadow: 0 4px 12px rgba(239, 187, 3, 0.4);
     }
     
+    button.notion {
+      background: linear-gradient(180deg, var(--blue-500) 0%, var(--blue-600) 100%);
+      border-color: #3c45a5;
+      color: white;
+      font-weight: 700;
+    }
+    
+    button.notion:hover {
+      background: linear-gradient(180deg, #6b75f7 0%, var(--blue-500) 100%);
+      border-color: var(--blue-600);
+      box-shadow: 0 4px 12px rgba(88, 101, 242, 0.4);
+    }
+    
+    button.notion:disabled {
+      opacity: 0.5;
+    }
+    
     .info {
       font-size: 11px;
       text-align: center;
@@ -238,6 +257,7 @@
     </div>
     
     <button id="extractBtn" class="primary">Extract Content</button>
+    <button id="notionBtn" class="notion">📝 Send to Notion</button>
     <button id="downloadBtn">Download as File</button>
     <button id="copyBtn">Copy to Clipboard</button>
     <button id="optionsBtn">Options</button>
@@ -251,6 +271,7 @@
   </div>
   
   <script src="browser-polyfill.js"></script>
+  <script src="notion-api.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>
