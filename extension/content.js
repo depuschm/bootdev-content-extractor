@@ -14,98 +14,168 @@ function extractContent() {
     url: url,
     timestamp: new Date().toISOString(),
     title: '',
-    task: '',
-    question: '',
-    givenSolution: '',
-    actualSolution: '',
-    additionalInfo: {}
+    description: '',
+    requirements: [],
+    examples: [],
+    starterCode: '',
+    testCode: '',
+    notes: [],
+    allFiles: [],
+    userCode: '',
+    solution: ''
   };
 
-  // Extract title
-  const titleElement = document.querySelector('h1, h2, [class*="title"]');
-  if (titleElement) {
-    data.title = titleElement.textContent.trim();
-  }
-
-  // Try to find task/instructions
-  const taskSelectors = [
-    '[class*="instruction"]',
-    '[class*="description"]',
-    '[class*="task"]',
-    '[class*="prompt"]',
-    '.challenge-description',
-    '.lesson-content'
-  ];
-
-  for (const selector of taskSelectors) {
-    const element = document.querySelector(selector);
-    if (element) {
-      data.task = element.textContent.trim();
-      break;
+  // Extract from the viewer div (markdown content on the left side)
+  const viewerDiv = document.querySelector('.viewer');
+  if (viewerDiv) {
+    // Get title (h1)
+    const titleElement = viewerDiv.querySelector('h1');
+    if (titleElement) {
+      data.title = titleElement.textContent.trim();
     }
-  }
 
-  // Try to find question/problem statement
-  const questionSelectors = [
-    '[class*="question"]',
-    '[class*="problem"]',
-    'p'
-  ];
-
-  for (const selector of questionSelectors) {
-    const elements = document.querySelectorAll(selector);
-    if (elements.length > 0) {
-      const questionText = Array.from(elements)
-        .map(el => el.textContent.trim())
-        .filter(text => text.length > 20)
-        .join('\n\n');
-      if (questionText) {
-        data.question = questionText;
-        break;
+    // Get all paragraphs for description and requirements
+    const paragraphs = viewerDiv.querySelectorAll('p');
+    const paragraphTexts = [];
+    paragraphs.forEach(p => {
+      const text = p.textContent.trim();
+      if (text && text.length > 0) {
+        paragraphTexts.push(text);
       }
+    });
+
+    if (paragraphTexts.length > 0) {
+      // First paragraph is usually the main description
+      data.description = paragraphTexts[0];
     }
-  }
 
-  // Extract code blocks (given solution, starter code, etc.)
-  const codeBlocks = document.querySelectorAll('pre, code, [class*="editor"], [class*="code"]');
-  const codeContents = [];
-
-  codeBlocks.forEach((block, index) => {
-    const code = block.textContent.trim();
-    if (code.length > 0) {
-      codeContents.push({
-        index: index,
-        content: code,
-        language: block.className || 'unknown'
-      });
-    }
-  });
-
-  if (codeContents.length > 0) {
-    data.givenSolution = codeContents[0].content;
-    if (codeContents.length > 1) {
-      data.actualSolution = codeContents[codeContents.length - 1].content;
-    }
-  }
-
-  // Try to find Monaco Editor or CodeMirror instances
-  const editors = document.querySelectorAll('[class*="monaco"], [class*="CodeMirror"]');
-  if (editors.length > 0) {
-    editors.forEach((editor, index) => {
-      const editorCode = editor.textContent.trim();
-      if (editorCode) {
-        if (index === 0) {
-          data.givenSolution = editorCode;
-        } else {
-          data.actualSolution = editorCode;
+    // Get requirements/ordered lists
+    const orderedLists = viewerDiv.querySelectorAll('ol');
+    orderedLists.forEach(ol => {
+      const listItems = ol.querySelectorAll('li');
+      const requirements = [];
+      listItems.forEach(li => {
+        const text = li.textContent.trim();
+        if (text) {
+          requirements.push(text);
         }
+      });
+      if (requirements.length > 0) {
+        data.requirements.push(...requirements);
+      }
+    });
+
+    // Get unordered lists (notes)
+    const unorderedLists = viewerDiv.querySelectorAll('ul');
+    unorderedLists.forEach(ul => {
+      const listItems = ul.querySelectorAll('li');
+      listItems.forEach(li => {
+        const text = li.textContent.trim();
+        if (text) {
+          data.notes.push(text);
+        }
+      });
+    });
+
+    // Get code examples from pre/code blocks
+    const codeBlocks = viewerDiv.querySelectorAll('pre code');
+    codeBlocks.forEach((codeBlock, index) => {
+      const code = codeBlock.textContent.trim();
+      if (code) {
+        data.examples.push({
+          index: index + 1,
+          code: code
+        });
       }
     });
   }
 
-  // Store all text content as fallback
-  data.additionalInfo.allCodeBlocks = codeContents;
-  data.additionalInfo.pageText = document.body.textContent.trim().substring(0, 5000);
+  // Extract code from all CodeMirror editors (multiple tabs)
+  // Try multiple methods to get the complete code
+  const allEditors = document.querySelectorAll('.cm-content[role="textbox"]');
+  const codeFiles = [];
+
+  allEditors.forEach((editor, index) => {
+    let code = '';
+
+    // Method 1: Try to get from CodeMirror state (most reliable)
+    try {
+      // Look for the CodeMirror view instance
+      const cmView = editor.cmView?.view;
+      if (cmView && cmView.state && cmView.state.doc) {
+        code = cmView.state.doc.toString();
+      }
+    } catch (e) {
+      console.log('Method 1 failed:', e);
+    }
+
+    // Method 2: Get from visible lines (fallback)
+    if (!code) {
+      const lines = editor.querySelectorAll('.cm-line');
+      const codeLines = [];
+      lines.forEach(line => {
+        codeLines.push(line.textContent);
+      });
+      code = codeLines.join('\n');
+    }
+
+    // Method 3: Try innerText (last resort)
+    if (!code || code.trim() === '') {
+      code = editor.innerText || editor.textContent || '';
+    }
+
+    // Try to determine which file this is based on the tab
+    const tabs = document.querySelectorAll('[role="tab"]');
+    let fileName = `file_${index}.py`;
+    if (tabs[index]) {
+      const tabText = tabs[index].textContent.trim();
+      if (tabText) {
+        fileName = tabText;
+      }
+    }
+
+    codeFiles.push({
+      fileName: fileName,
+      code: code,
+      isActive: editor.closest('.w-full')?.style.display !== 'none'
+    });
+  });
+
+  // Separate starter code and test code
+  const starterFile = codeFiles.find(f => f.fileName.includes('main.py') && !f.fileName.includes('test'));
+  const testFile = codeFiles.find(f => f.fileName.includes('test'));
+
+  if (starterFile) {
+    data.starterCode = starterFile.code;
+    data.userCode = starterFile.code;
+  }
+
+  if (testFile) {
+    data.testCode = testFile.code;
+  }
+
+  // Store all files for reference
+  data.allFiles = codeFiles;
+
+  // Try to extract solution if available
+  try {
+    // Check localStorage for solution
+    const storageKey = Object.keys(localStorage).find(key =>
+      key.includes('solution') || key.includes('answer')
+    );
+    if (storageKey) {
+      data.solution = localStorage.getItem(storageKey);
+    }
+
+    // Check for solution in DOM (might be hidden)
+    const solutionElement = document.querySelector('[data-solution], .solution-code, #solution');
+    if (solutionElement) {
+      data.solution = solutionElement.textContent || solutionElement.innerText;
+    }
+  } catch (e) {
+    console.log('Could not extract solution:', e);
+    data.solution = 'Solution not available (click "Solution" button first)';
+  }
 
   return data;
 }
@@ -113,21 +183,26 @@ function extractContent() {
 // Listen for messages from popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'extract') {
-    const content = extractContent();
-    sendResponse({ success: true, data: content });
+    setTimeout(() => {
+      const content = extractContent();
+      sendResponse({ success: true, data: content });
+    }, 100);
+    return true;
   }
-  return true;
 });
 
 // Store extracted content automatically
 function autoExtract() {
-  const content = extractContent();
-  if (content) {
-    chrome.storage.local.set({
-      lastExtracted: content,
-      lastExtractedTime: Date.now()
-    });
-  }
+  setTimeout(() => {
+    const content = extractContent();
+    if (content && (content.title || content.description || content.starterCode)) {
+      chrome.storage.local.set({
+        lastExtracted: content,
+        lastExtractedTime: Date.now()
+      });
+      console.log('Boot.dev Extractor: Content extracted and stored', content);
+    }
+  }, 2000);
 }
 
 // Auto-extract when page loads
@@ -137,13 +212,16 @@ if (document.readyState === 'loading') {
   autoExtract();
 }
 
-// Re-extract when content changes (for dynamic pages)
+// Re-extract when content changes (for SPAs)
+let extractTimeout;
 const observer = new MutationObserver(() => {
-  clearTimeout(window.extractTimeout);
-  window.extractTimeout = setTimeout(autoExtract, 1000);
+  clearTimeout(extractTimeout);
+  extractTimeout = setTimeout(autoExtract, 2000);
 });
 
-observer.observe(document.body, {
-  childList: true,
-  subtree: true
-});
+setTimeout(() => {
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+}, 2000);

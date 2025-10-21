@@ -22,54 +22,157 @@ function formatData(data, format) {
   if (format === 'json') {
     return JSON.stringify(data, null, 2);
   } else if (format === 'markdown') {
-    return `# ${data.title || 'Boot.dev Content'}
+    let markdown = `# ${data.title || 'Boot.dev Content'}
 
 **Type:** ${data.type}
 **URL:** ${data.url}
 **Extracted:** ${new Date(data.timestamp).toLocaleString()}
 
-## Task/Description
-${data.task || 'Not found'}
+## Description
+${data.description || 'Not found'}
 
-## Question/Problem
-${data.question || 'Not found'}
+`;
 
-## Given Solution/Starter Code
-\`\`\`
-${data.givenSolution || 'Not found'}
+    if (data.requirements && data.requirements.length > 0) {
+      markdown += `## Requirements\n\n`;
+      data.requirements.forEach((req, i) => {
+        markdown += `${i + 1}. ${req}\n`;
+      });
+      markdown += '\n';
+    }
+
+    if (data.notes && data.notes.length > 0) {
+      markdown += `## Notes\n\n`;
+      data.notes.forEach(note => {
+        markdown += `- ${note}\n`;
+      });
+      markdown += '\n';
+    }
+
+    if (data.examples && data.examples.length > 0) {
+      markdown += `## Examples\n\n`;
+      data.examples.forEach(example => {
+        markdown += `\`\`\`\n${example.code}\n\`\`\`\n\n`;
+      });
+    }
+
+    // Add all code files if available
+    if (data.allFiles && data.allFiles.length > 0) {
+      markdown += `## Code Files\n\n`;
+      data.allFiles.forEach(file => {
+        markdown += `### ${file.fileName}\n\n`;
+        markdown += `\`\`\`python\n${file.code}\n\`\`\`\n\n`;
+      });
+    } else {
+      // Fallback to old format
+      markdown += `## Starter Code
+\`\`\`python
+${data.starterCode || 'Not found'}
 \`\`\`
 
-## Actual Solution
+## Test Code
+\`\`\`python
+${data.testCode || 'Not found'}
 \`\`\`
-${data.actualSolution || 'Not found'}
+`;
+    }
+
+    // Add user's current code if different from starter
+    if (data.userCode && data.userCode !== data.starterCode && data.userCode.trim() !== 'pass') {
+      markdown += `## My Solution Attempt
+\`\`\`python
+${data.userCode}
 \`\`\`
 
----
+`;
+    }
+
+    // Add official solution if available
+    if (data.solution && !data.solution.includes('not available')) {
+      markdown += `## Official Solution
+\`\`\`python
+${data.solution}
+\`\`\`
+
+`;
+    }
+
+    markdown += `---
 *Extracted with Boot.dev Content Extractor*
 `;
+    return markdown;
   } else if (format === 'text') {
-    return `${data.title || 'Boot.dev Content'}
+    let text = `${data.title || 'Boot.dev Content'}
 ${'='.repeat(50)}
 
 Type: ${data.type}
 URL: ${data.url}
 Extracted: ${new Date(data.timestamp).toLocaleString()}
 
-TASK/DESCRIPTION:
-${data.task || 'Not found'}
+DESCRIPTION:
+${data.description || 'Not found'}
 
-QUESTION/PROBLEM:
-${data.question || 'Not found'}
+`;
 
-GIVEN SOLUTION/STARTER CODE:
-${data.givenSolution || 'Not found'}
+    if (data.requirements && data.requirements.length > 0) {
+      text += `REQUIREMENTS:\n`;
+      data.requirements.forEach((req, i) => {
+        text += `${i + 1}. ${req}\n`;
+      });
+      text += '\n';
+    }
 
-ACTUAL SOLUTION:
-${data.actualSolution || 'Not found'}
+    if (data.notes && data.notes.length > 0) {
+      text += `NOTES:\n`;
+      data.notes.forEach(note => {
+        text += `- ${note}\n`;
+      });
+      text += '\n';
+    }
 
-${'='.repeat(50)}
+    if (data.examples && data.examples.length > 0) {
+      text += `EXAMPLES:\n\n`;
+      data.examples.forEach(example => {
+        text += `${example.code}\n\n`;
+      });
+    }
+
+    // Add all code files if available
+    if (data.allFiles && data.allFiles.length > 0) {
+      text += `CODE FILES:\n\n`;
+      data.allFiles.forEach(file => {
+        text += `${file.fileName}:\n${file.code}\n\n`;
+      });
+    } else {
+      // Fallback to old format
+      text += `STARTER CODE:
+${data.starterCode || 'Not found'}
+
+TEST CODE:
+${data.testCode || 'Not found'}
+`;
+    }
+
+    // Add user's current code if different from starter
+    if (data.userCode && data.userCode !== data.starterCode && data.userCode.trim() !== 'pass') {
+      text += `\nMY SOLUTION ATTEMPT:
+${data.userCode}
+
+`;
+    }
+
+    // Add official solution if available
+    if (data.solution && !data.solution.includes('not available')) {
+      text += `\nOFFICIAL SOLUTION:
+${data.solution}
+
+`;
+    }
+
+    text += `${'='.repeat(50)}
 Extracted with Boot.dev Content Extractor
 `;
+    return text;
   }
 }
 
@@ -98,7 +201,12 @@ async function extractContent() {
       // Show preview
       const preview = document.getElementById('preview');
       preview.style.display = 'block';
-      preview.textContent = `Title: ${currentData.title || 'N/A'}\nType: ${currentData.type}`;
+
+      let previewText = `Title: ${currentData.title || 'N/A'}\nType: ${currentData.type}`;
+      if (currentData.allFiles && currentData.allFiles.length > 0) {
+        previewText += `\nFiles: ${currentData.allFiles.map(f => f.fileName).join(', ')}`;
+      }
+      preview.textContent = previewText;
 
       return true;
     } else {
