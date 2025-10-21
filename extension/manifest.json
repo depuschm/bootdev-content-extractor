@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "Boot.dev Content Extractor",
+  "version": "1.0.0",
+  "description": "Extract challenges and lessons from Boot.dev",
+  "permissions": [
+    "activeTab",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://www.boot.dev/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "icon.svg"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.boot.dev/challenges/*",
+        "https://www.boot.dev/lessons/*"
+      ],
+      "js": [
+        "content.js"
+      ]
+    }
+  ],
+  "options_page": "options.html",
+  "icons": {
+    "16": "icon.svg",
+    "48": "icon.svg",
+    "128": "icon.svg"
+  }
+}

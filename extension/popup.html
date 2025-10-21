@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      width: 400px;
+      min-height: 300px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      padding: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    
+    h1 {
+      font-size: 20px;
+      margin-bottom: 15px;
+      text-align: center;
+    }
+    
+    .status {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      backdrop-filter: blur(10px);
+    }
+    
+    .status-title {
+      font-weight: 600;
+      margin-bottom: 5px;
+    }
+    
+    .status-text {
+      font-size: 14px;
+      opacity: 0.9;
+    }
+    
+    button {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 10px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      background: white;
+      color: #667eea;
+    }
+    
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+    
+    button:active {
+      transform: translateY(0);
+    }
+    
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .secondary {
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+    }
+    
+    .info {
+      font-size: 12px;
+      text-align: center;
+      opacity: 0.8;
+      margin-top: 15px;
+    }
+    
+    .preview {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 10px;
+      border-radius: 6px;
+      margin-top: 10px;
+      max-height: 150px;
+      overflow-y: auto;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    
+    .preview::-webkit-scrollbar {
+      width: 6px;
+    }
+    
+    .preview::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+    }
+    
+    .preview::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 3px;
+    }
+    
+    .error {
+      background: rgba(255, 59, 48, 0.2);
+      color: white;
+      padding: 10px;
+      border-radius: 6px;
+      margin-top: 10px;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🚀 Boot.dev Extractor</h1>
+  
+  <div class="status" id="status">
+    <div class="status-title">Status</div>
+    <div class="status-text" id="statusText">Checking page...</div>
+  </div>
+  
+  <button id="extractBtn">Extract Content</button>
+  <button id="downloadBtn" class="secondary">Download as File</button>
+  <button id="copyBtn" class="secondary">Copy to Clipboard</button>
+  <button id="optionsBtn" class="secondary">Options</button>
+  
+  <div class="info">
+    Works on Boot.dev challenges and lessons
+  </div>
+  
+  <div id="preview" class="preview" style="display: none;"></div>
+  <div id="error" class="error" style="display: none;"></div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>
