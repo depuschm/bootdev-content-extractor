@@ -43,20 +43,47 @@ function getFileExtension(language) {
 
 // Format data for download
 function formatData(data, format) {
+  const includeMetadata = data.includeMetadata !== false; // default to true if not specified
+
   if (format === 'json') {
-    return JSON.stringify(data, null, 2);
+    // For JSON, only include metadata fields if includeMetadata is true
+    const jsonData = {
+      title: data.title || 'Boot.dev Content',
+      type: data.type,
+      language: data.language || 'Unknown',
+      description: data.description || 'Not found',
+      requirements: data.requirements || [],
+      notes: data.notes || [],
+      examples: data.examples || [],
+      allFiles: data.allFiles || [],
+      starterCode: data.starterCode || 'Not found',
+      testCode: data.testCode || 'Not found',
+      userCode: data.userCode || '',
+      solution: data.solution || ''
+    };
+
+    // Add metadata fields only if includeMetadata is true
+    if (includeMetadata) {
+      jsonData.url = data.url;
+      jsonData.timestamp = data.timestamp;
+    }
+
+    return JSON.stringify(jsonData, null, 2);
   } else if (format === 'markdown') {
-    let markdown = `# ${data.title || 'Boot.dev Content'}
+    let markdown = `# ${data.title || 'Boot.dev Content'}\n\n`;
 
-**Type:** ${data.type}
-**Language:** ${data.language || 'Unknown'}
-**URL:** ${data.url}
-**Extracted:** ${new Date(data.timestamp).toLocaleString()}
+    // Add metadata section only if includeMetadata is true
+    if (includeMetadata) {
+      markdown += `**Type:** ${data.type}\n`;
+      markdown += `**Language:** ${data.language || 'Unknown'}\n`;
+      markdown += `**URL:** ${data.url}\n`;
+      markdown += `**Extracted:** ${new Date(data.timestamp).toLocaleString()}\n\n`;
+    } else {
+      markdown += `**Type:** ${data.type}\n`;
+      markdown += `**Language:** ${data.language || 'Unknown'}\n\n`;
+    }
 
-## Description
-${data.description || 'Not found'}
-
-`;
+    markdown += `## Description\n${data.description || 'Not found'}\n\n`;
 
     if (data.requirements && data.requirements.length > 0) {
       markdown += `## Requirements\n\n`;
@@ -93,57 +120,39 @@ ${data.description || 'Not found'}
     } else {
       // Fallback to old format
       const lang = data.language || 'python';
-      markdown += `## Starter Code
-\`\`\`${lang}
-${data.starterCode || 'Not found'}
-\`\`\`
-
-## Test Code
-\`\`\`${lang}
-${data.testCode || 'Not found'}
-\`\`\`
-`;
+      markdown += `## Starter Code\n\`\`\`${lang}\n${data.starterCode || 'Not found'}\n\`\`\`\n\n`;
+      markdown += `## Test Code\n\`\`\`${lang}\n${data.testCode || 'Not found'}\n\`\`\`\n\n`;
     }
 
     // Add user's current code if different from starter
     if (data.userCode && data.userCode !== data.starterCode && data.userCode.trim() !== 'pass') {
       const lang = data.language || 'python';
-      markdown += `## My Solution Attempt
-\`\`\`${lang}
-${data.userCode}
-\`\`\`
-
-`;
+      markdown += `## My Solution Attempt\n\`\`\`${lang}\n${data.userCode}\n\`\`\`\n\n`;
     }
 
     // Add official solution if available
     if (data.solution && !data.solution.includes('not available')) {
       const lang = data.language || 'python';
-      markdown += `## Official Solution
-\`\`\`${lang}
-${data.solution}
-\`\`\`
-
-`;
+      markdown += `## Official Solution\n\`\`\`${lang}\n${data.solution}\n\`\`\`\n\n`;
     }
 
-    markdown += `---
-*Extracted with Boot.dev Content Extractor*
-`;
+    markdown += `---\n*Extracted with Boot.dev Content Extractor*\n`;
     return markdown;
   } else if (format === 'text') {
-    let text = `${data.title || 'Boot.dev Content'}
-${'='.repeat(50)}
+    let text = `${data.title || 'Boot.dev Content'}\n${'='.repeat(50)}\n\n`;
 
-Type: ${data.type}
-Language: ${data.language || 'Unknown'}
-URL: ${data.url}
-Extracted: ${new Date(data.timestamp).toLocaleString()}
+    // Add metadata only if includeMetadata is true
+    if (includeMetadata) {
+      text += `Type: ${data.type}\n`;
+      text += `Language: ${data.language || 'Unknown'}\n`;
+      text += `URL: ${data.url}\n`;
+      text += `Extracted: ${new Date(data.timestamp).toLocaleString()}\n\n`;
+    } else {
+      text += `Type: ${data.type}\n`;
+      text += `Language: ${data.language || 'Unknown'}\n\n`;
+    }
 
-DESCRIPTION:
-${data.description || 'Not found'}
-
-`;
+    text += `DESCRIPTION:\n${data.description || 'Not found'}\n\n`;
 
     if (data.requirements && data.requirements.length > 0) {
       text += `REQUIREMENTS:\n`;
@@ -176,33 +185,21 @@ ${data.description || 'Not found'}
       });
     } else {
       // Fallback to old format
-      text += `STARTER CODE:
-${data.starterCode || 'Not found'}
-
-TEST CODE:
-${data.testCode || 'Not found'}
-`;
+      text += `STARTER CODE:\n${data.starterCode || 'Not found'}\n\n`;
+      text += `TEST CODE:\n${data.testCode || 'Not found'}\n\n`;
     }
 
     // Add user's current code if different from starter
     if (data.userCode && data.userCode !== data.starterCode && data.userCode.trim() !== 'pass') {
-      text += `\nMY SOLUTION ATTEMPT:
-${data.userCode}
-
-`;
+      text += `MY SOLUTION ATTEMPT:\n${data.userCode}\n\n`;
     }
 
     // Add official solution if available
     if (data.solution && !data.solution.includes('not available')) {
-      text += `\nOFFICIAL SOLUTION:
-${data.solution}
-
-`;
+      text += `OFFICIAL SOLUTION:\n${data.solution}\n\n`;
     }
 
-    text += `${'='.repeat(50)}
-Extracted with Boot.dev Content Extractor
-`;
+    text += `${'='.repeat(50)}\nExtracted with Boot.dev Content Extractor\n`;
     return text;
   }
 }

@@ -4,12 +4,12 @@
 async function loadSettings() {
   const settings = await chrome.storage.sync.get({
     format: 'markdown',
-    autoExtract: true,
+    extractSolution: true,
     includeMetadata: true
   });
 
   document.getElementById('format').value = settings.format;
-  document.getElementById('autoExtract').checked = settings.autoExtract;
+  document.getElementById('extractSolution').checked = settings.extractSolution;
   document.getElementById('includeMetadata').checked = settings.includeMetadata;
 }
 
@@ -17,7 +17,7 @@ async function loadSettings() {
 async function saveSettings() {
   const settings = {
     format: document.getElementById('format').value,
-    autoExtract: document.getElementById('autoExtract').checked,
+    extractSolution: document.getElementById('extractSolution').checked,
     includeMetadata: document.getElementById('includeMetadata').checked
   };
 
