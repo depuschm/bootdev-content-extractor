@@ -32,18 +32,51 @@ async function checkNotionConfig() {
   const settings = await api.storage.sync.get({
     notionEnabled: false,
     notionToken: '',
-    notionDatabaseId: ''
+    databases: []
   });
 
   const notionBtn = document.getElementById('notionBtn');
 
-  if (!settings.notionEnabled || !settings.notionToken || !settings.notionDatabaseId) {
+  // Check if at least one database is configured
+  const hasAnyDatabase = settings.databases && settings.databases.length > 0;
+
+  if (!settings.notionEnabled || !settings.notionToken || !hasAnyDatabase) {
     notionBtn.disabled = true;
-    notionBtn.textContent = '📝 Configure Notion in Options';
+    notionBtn.textContent = '🔗 Configure Notion in Options';
   } else {
     notionBtn.disabled = false;
-    notionBtn.textContent = '📝 Send to Notion';
+    notionBtn.textContent = '🔗 Send to Notion';
   }
+}
+
+// Get the appropriate database ID for the content type
+function getDatabaseIdForType(type, databases) {
+  if (!databases || databases.length === 0) {
+    return null;
+  }
+
+  const normalizedType = type?.toLowerCase().trim();
+
+  // Try exact match first
+  let match = databases.find(db => db.type.toLowerCase().trim() === normalizedType);
+  if (match && match.id) {
+    return match.id;
+  }
+
+  // Try partial match (e.g., "multiple-choice" matches "multiple choice")
+  const typeWords = normalizedType.replace(/[-_]/g, ' ').split(' ');
+  match = databases.find(db => {
+    const dbType = db.type.toLowerCase().trim().replace(/[-_]/g, ' ');
+    return typeWords.some(word => dbType.includes(word)) ||
+      dbType.split(' ').some(word => normalizedType.includes(word));
+  });
+  if (match && match.id) {
+    return match.id;
+  }
+
+  // Fall back to any database with "other" type (case-insensitive)
+  const fallback = databases.find(db => db.type.toLowerCase().trim() === 'other');
+  return fallback ? fallback.id : null;
 }
 
 // Get file extension for language
@@ -276,11 +309,20 @@ async function handleNotionExport() {
   const settings = await api.storage.sync.get({
     notionEnabled: false,
     notionToken: '',
-    notionDatabaseId: ''
+    databases: []
   });
 
-  if (!settings.notionEnabled || !settings.notionToken || !settings.notionDatabaseId) {
+  if (!settings.notionEnabled || !settings.notionToken) {
     document.getElementById('error').textContent = 'Notion not configured. Please configure in Options.';
+    document.getElementById('error').style.display = 'block';
+    return;
+  }
+
+  // Determine which database to use
+  const databaseId = getDatabaseIdForType(currentData.type, settings.databases);
+
+  if (!databaseId) {
+    document.getElementById('error').textContent = `No database configured for type "${currentData.type}". Please add a database for this type or add an "other" database as fallback in Options.`;
     document.getElementById('error').style.display = 'block';
     return;
   }
@@ -295,7 +337,7 @@ async function handleNotionExport() {
     // Send to Notion
     const result = await NotionAPI.createPage(
       settings.notionToken,
-      settings.notionDatabaseId,
+      databaseId,
       currentData
     );
 

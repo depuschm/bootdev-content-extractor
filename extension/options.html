@@ -25,6 +25,8 @@
       --green-700: #0db543;
       --blue-500: #5865f2;
       --blue-600: #4752c4;
+      --red-500: #ed4245;
+      --red-600: #cd1316;
     }
     
     * {
@@ -182,6 +184,198 @@
       line-height: 1.5;
     }
     
+    .db-field {
+      background: var(--gray-800);
+      border: 1px solid var(--gray-700);
+      border-radius: 6px;
+      padding: 16px;
+      margin-bottom: 12px;
+      animation: slideIn 0.2s ease;
+    }
+    
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .db-field-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    
+    .db-field-type {
+      flex: 1;
+    }
+    
+    .db-field-id {
+      flex: 2;
+    }
+    
+    .db-field-remove {
+      background: var(--red-500);
+      border: none;
+      color: white;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+    
+    .db-field-remove:hover {
+      background: var(--red-600);
+      transform: scale(1.05);
+    }
+    
+    .db-field-badge {
+      background: var(--gray-700);
+      color: var(--gray-400);
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .db-field-badge.fallback {
+      background: var(--yellow-700);
+      color: var(--yellow-300);
+    }
+    
+    .add-db-btn {
+      width: 100%;
+      background: var(--gray-800);
+      border: 2px dashed var(--gray-700);
+      color: var(--gray-400);
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: 'DMSans', sans-serif;
+    }
+    
+    .add-db-btn:hover {
+      border-color: var(--yellow-600);
+      color: var(--yellow-500);
+      background: var(--gray-750);
+    }
+
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-overlay.show {
+      display: flex;
+    }
+
+    .modal {
+      background: var(--gray-850);
+      border: 1px solid var(--gray-700);
+      border-radius: 8px;
+      padding: 24px;
+      max-width: 500px;
+      width: 90%;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+      animation: slideUp 0.3s ease;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .modal-title {
+      font-family: 'Arcuata', serif;
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--yellow-500);
+      margin-bottom: 16px;
+    }
+
+    .modal-content {
+      color: var(--gray-300);
+      font-size: 14px;
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+
+    .modal-warning {
+      background: rgba(239, 187, 3, 0.1);
+      border-left: 4px solid var(--yellow-600);
+      padding: 12px;
+      border-radius: 4px;
+      margin-top: 12px;
+      font-size: 13px;
+      color: var(--yellow-300);
+    }
+
+    .modal-buttons {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+    }
+
+    .modal-button {
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 2px solid;
+    }
+
+    .modal-button.cancel {
+      background: var(--gray-800);
+      border-color: var(--gray-700);
+      color: var(--gray-200);
+    }
+
+    .modal-button.cancel:hover {
+      background: var(--gray-750);
+      border-color: var(--gray-600);
+    }
+
+    .modal-button.confirm {
+      background: linear-gradient(180deg, var(--yellow-400) 0%, var(--yellow-600) 100%);
+      border-color: var(--yellow-700);
+      color: var(--gray-950);
+    }
+
+    .modal-button.confirm:hover {
+      background: linear-gradient(180deg, var(--yellow-300) 0%, var(--yellow-500) 100%);
+      border-color: var(--yellow-600);
+      transform: translateY(-2px);
+    }
+    
     .instructions {
       background: var(--gray-800);
       border-left: 4px solid var(--blue-500);
@@ -329,6 +523,17 @@
       color: var(--yellow-500);
       font-weight: 700;
     }
+
+    #databaseList {
+      margin-bottom: 12px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 32px 16px;
+      color: var(--gray-500);
+      font-size: 14px;
+    }
   </style>
 </head>
 <body>
@@ -343,26 +548,23 @@
       <div class="section-title">🔗 Notion Integration</div>
       
       <div class="instructions">
-        <div class="instructions-title">📝 Setup Instructions:</div>
+        <div class="instructions-title">📋 Setup Instructions:</div>
         <ol>
           <li>Go to <a href="https://www.notion.so/my-integrations" target="_blank">notion.so/my-integrations</a></li>
           <li>Click <strong>"+ New integration"</strong></li>
           <li>Name it (e.g., "Boot.dev Content Extractor") and select your workspace</li>
           <li>Go to the <strong>Configuration</strong> tab and copy the <strong>Internal Integration Secret</strong> (starts with <code>ntn_</code>)</li>
-          <li>Create a new <strong>database</strong> in Notion (Full page recommended)</li>
-          <li>Add these columns to your database for better organization:
+          <li>Create one or more <strong>databases</strong> in Notion for different exercise types</li>
+          <li>Add these columns to your databases for better organization:
             <ul style="margin-top: 8px; margin-left: 20px; color: var(--gray-500); font-size: 12px;">
               <li><strong>Type</strong> - Property type: Select</li>
               <li><strong>Language</strong> - Property type: Select</li>
               <li><strong>URL</strong> - Property type: URL</li>
             </ul>
           </li>
-          <li>Click the <strong>"..."</strong> menu in the top-right corner of your database</li>
-          <li>Scroll down to <strong>"+ Add connections"</strong></li>
-          <li>Search for and select your integration</li>
-          <li>Confirm the integration can access the database</li>
-          <li>Copy the <strong>Database ID</strong> from the URL (32-character code)</li>
-          <li>Paste both values below and test the connection</li>
+          <li>For each database: Click the <strong>"..."</strong> menu → <strong>"+ Add connections"</strong> → Select your integration</li>
+          <li>Copy each database's <strong>Database ID</strong> from the URL (32-character code)</li>
+          <li>Add databases below using the "+ Add Database" button</li>
         </ol>
       </div>
       
@@ -371,7 +573,7 @@
           <input type="checkbox" id="notionEnabled">
           <label for="notionEnabled">Enable Notion integration</label>
         </div>
-        <p class="description">Send extracted content directly to your Notion database</p>
+        <p class="description">Send extracted content directly to your Notion databases</p>
       </div>
       
       <div class="option">
@@ -379,11 +581,29 @@
         <input type="text" id="notionToken" placeholder="ntn_xxxxxxxxxxxxxxxxxxxxx">
         <p class="description">Your Notion integration token (keep this secret!)</p>
       </div>
+    </div>
+
+    <!-- Database IDs Section -->
+    <div class="section">
+      <div class="section-title">🗄️ Database Configuration</div>
+      <p class="description" style="margin-bottom: 20px;">
+        Add databases for different exercise types. The extension will match content by type name. 
+        Use <strong>"other"</strong> as a fallback for unmatched types.
+      </p>
+      <p class="description" style="margin-bottom: 20px; padding: 12px; background: var(--gray-800); border-radius: 6px; border-left: 3px solid var(--blue-500);">
+        <strong>💡 Common exercise types:</strong> challenge, lesson, yes-no, multiple-choice, free-text<br>
+        <span style="font-size: 12px; opacity: 0.8; margin-top: 4px; display: block;">
+          You can add any custom type names that match your Boot.dev content.
+        </span>
+      </p>
       
-      <div class="option">
-        <label for="notionDatabaseId">Database ID:</label>
-        <input type="text" id="notionDatabaseId" placeholder="2935ad11635b803bb19bc6609fae61bb">
-        <p class="description">The ID of your Challenges database</p>
+      <div id="databaseList"></div>
+      
+      <div style="display: flex; gap: 12px;">
+        <button class="add-db-btn" id="addDatabaseBtn" style="flex: 1;">+ Add Database</button>
+        <button class="add-db-btn" id="restoreDefaultsBtn" style="flex: 1; border-color: var(--blue-600); color: var(--blue-500);">
+          🔄 Restore Defaults
+        </button>
       </div>
     </div>
     
@@ -431,8 +651,31 @@
     <div id="status" class="status"></div>
     
     <div class="footer">
-      <strong>Boot.dev Content Extractor</strong> v1.1.0<br>
+      <strong>Boot.dev Content Extractor</strong> v1.2.0<br>
       Extract and save your coding challenges and lessons
+    </div>
+  </div>
+
+  <!-- Confirmation Modal -->
+  <div class="modal-overlay" id="confirmModal">
+    <div class="modal">
+      <div class="modal-title">⚠️ Restore Default Database Types?</div>
+      <div class="modal-content">
+        <p>This will restore the default database type entries:</p>
+        <ul style="margin: 12px 0 12px 20px; line-height: 1.8;">
+          <li><strong>challenge</strong></li>
+          <li><strong>lesson</strong></li>
+          <li><strong>other</strong> (fallback)</li>
+        </ul>
+        <div class="modal-warning">
+          <strong>Note:</strong> If you have existing database IDs for these types, they will be preserved. 
+          Any custom types you added will be removed.
+        </div>
+      </div>
+      <div class="modal-buttons">
+        <button class="modal-button cancel" id="cancelRestore">Cancel</button>
+        <button class="modal-button confirm" id="confirmRestore">Restore Defaults</button>
+      </div>
     </div>
   </div>
   
