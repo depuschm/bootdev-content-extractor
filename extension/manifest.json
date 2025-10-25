@@ -28,10 +28,10 @@
       "js": [
         "lib/browser-polyfill.js",
         "src/utils/config.js",
+        "src/utils/html-parser.js",
         "src/utils/logger.js",
         "src/utils/validator.js",
-        "src/utils/html-parser.js",
-        "src/content/content.js"
+        "src/content.js"
       ],
       "run_at": "document_idle"
     }
