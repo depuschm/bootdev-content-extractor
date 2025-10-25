@@ -1,12 +1,12 @@
 // Notion API integration for Boot.dev Content Extractor
-// Cross-browser compatible
+// Cross-browser compatible with interview exercise support
 
 const NotionAPI = {
   baseURL: 'https://api.notion.com/v1',
   version: '2022-06-28',
 
   // Create a new page in a database
-  async createPage(token, databaseId, content) {
+  async createPage(token, databaseId, content, version = '1.2.0') {
     const url = `${this.baseURL}/pages`;
 
     const properties = {
@@ -30,6 +30,14 @@ const NotionAPI = {
       };
     }
 
+    if (content.exerciseType) {
+      properties['Exercise Type'] = {
+        select: {
+          name: content.exerciseType === 'interview' ? 'Interview' : 'Coding'
+        }
+      };
+    }
+
     if (content.language) {
       properties['Language'] = {
         select: {
@@ -45,7 +53,7 @@ const NotionAPI = {
     }
 
     // Convert content to Notion blocks
-    const children = this.contentToBlocks(content);
+    const children = this.contentToBlocks(content, version);
 
     const body = {
       parent: {
@@ -74,8 +82,9 @@ const NotionAPI = {
   },
 
   // Convert extracted content to Notion blocks
-  contentToBlocks(content) {
+  contentToBlocks(content, version = '1.2.0') {
     const blocks = [];
+    const isInterview = content.exerciseType === 'interview';
 
     // Add description
     if (content.description) {
@@ -158,42 +167,173 @@ const NotionAPI = {
       });
     }
 
-    // Add code files
-    if (content.allFiles && content.allFiles.length > 0) {
-      blocks.push({
-        object: 'block',
-        type: 'heading_2',
-        heading_2: {
-          rich_text: [{ type: 'text', text: { content: 'Code Files' } }]
-        }
-      });
-
-      content.allFiles.forEach(file => {
+    // Interview-specific content
+    if (isInterview) {
+      if (content.interviewMessages && content.interviewMessages.length > 0) {
         blocks.push({
           object: 'block',
-          type: 'heading_3',
-          heading_3: {
-            rich_text: [{ type: 'text', text: { content: file.fileName } }]
+          type: 'heading_2',
+          heading_2: {
+            rich_text: [{ type: 'text', text: { content: 'Interview Transcript' } }]
           }
         });
 
+        content.interviewMessages.forEach(msg => {
+          // Add speaker as heading
+          blocks.push({
+            object: 'block',
+            type: 'heading_3',
+            heading_3: {
+              rich_text: [{ type: 'text', text: { content: msg.speaker } }]
+            }
+          });
+
+          // Parse message content to separate text and code blocks
+          const parts = this.parseMessageContent(msg.content);
+
+          parts.forEach(part => {
+            if (part.type === 'code') {
+              blocks.push({
+                object: 'block',
+                type: 'code',
+                code: {
+                  rich_text: [{ type: 'text', text: { content: part.content } }],
+                  language: this.mapLanguage(part.language || 'plain text')
+                }
+              });
+            } else {
+              // Split long text into chunks (Notion has 2000 char limit per rich_text)
+              const chunks = this.splitIntoChunks(part.content, 1900);
+              chunks.forEach(chunk => {
+                blocks.push({
+                  object: 'block',
+                  type: 'paragraph',
+                  paragraph: {
+                    rich_text: [{ type: 'text', text: { content: chunk } }]
+                  }
+                });
+              });
+            }
+          });
+        });
+      }
+
+      // Add expected points (solution)
+      if (content.expectedPoints && content.expectedPoints.length > 0) {
         blocks.push({
           object: 'block',
-          type: 'code',
-          code: {
-            rich_text: [{ type: 'text', text: { content: file.code } }],
-            language: this.mapLanguage(file.language || content.language)
+          type: 'heading_2',
+          heading_2: {
+            rich_text: [{ type: 'text', text: { content: 'Official Solution' } }]
           }
         });
-      });
+
+        content.expectedPoints.forEach(point => {
+          blocks.push({
+            object: 'block',
+            type: 'numbered_list_item',
+            numbered_list_item: {
+              rich_text: [{ type: 'text', text: { content: point.point } }]
+            }
+          });
+        });
+      } else if (content.solution && !content.solution.includes('not available')) {
+        blocks.push({
+          object: 'block',
+          type: 'heading_2',
+          heading_2: {
+            rich_text: [{ type: 'text', text: { content: 'Official Solution' } }]
+          }
+        });
+
+        const chunks = this.splitIntoChunks(content.solution, 1900);
+        chunks.forEach(chunk => {
+          blocks.push({
+            object: 'block',
+            type: 'paragraph',
+            paragraph: {
+              rich_text: [{ type: 'text', text: { content: chunk } }]
+            }
+          });
+        });
+      }
     } else {
-      // Fallback to starter code and test code
-      if (content.starterCode) {
+      // Coding exercise content
+      if (content.allFiles && content.allFiles.length > 0) {
         blocks.push({
           object: 'block',
           type: 'heading_2',
           heading_2: {
-            rich_text: [{ type: 'text', text: { content: 'Starter Code' } }]
+            rich_text: [{ type: 'text', text: { content: 'Code Files' } }]
+          }
+        });
+
+        content.allFiles.forEach(file => {
+          blocks.push({
+            object: 'block',
+            type: 'heading_3',
+            heading_3: {
+              rich_text: [{ type: 'text', text: { content: file.fileName } }]
+            }
+          });
+
+          blocks.push({
+            object: 'block',
+            type: 'code',
+            code: {
+              rich_text: [{ type: 'text', text: { content: file.code } }],
+              language: this.mapLanguage(file.language || content.language)
+            }
+          });
+        });
+      } else {
+        // Fallback to starter code and test code
+        if (content.starterCode) {
+          blocks.push({
+            object: 'block',
+            type: 'heading_2',
+            heading_2: {
+              rich_text: [{ type: 'text', text: { content: 'Starter Code' } }]
+            }
+          });
+
+          blocks.push({
+            object: 'block',
+            type: 'code',
+            code: {
+              rich_text: [{ type: 'text', text: { content: content.starterCode } }],
+              language: this.mapLanguage(content.language)
+            }
+          });
+        }
+
+        if (content.testCode) {
+          blocks.push({
+            object: 'block',
+            type: 'heading_2',
+            heading_2: {
+              rich_text: [{ type: 'text', text: { content: 'Test Code' } }]
+            }
+          });
+
+          blocks.push({
+            object: 'block',
+            type: 'code',
+            code: {
+              rich_text: [{ type: 'text', text: { content: content.testCode } }],
+              language: this.mapLanguage(content.language)
+            }
+          });
+        }
+      }
+
+      // Add solution if available
+      if (content.solution && !content.solution.includes('not available')) {
+        blocks.push({
+          object: 'block',
+          type: 'heading_2',
+          heading_2: {
+            rich_text: [{ type: 'text', text: { content: 'Official Solution' } }]
           }
         });
 
@@ -201,53 +341,103 @@ const NotionAPI = {
           object: 'block',
           type: 'code',
           code: {
-            rich_text: [{ type: 'text', text: { content: content.starterCode } }],
-            language: this.mapLanguage(content.language)
-          }
-        });
-      }
-
-      if (content.testCode) {
-        blocks.push({
-          object: 'block',
-          type: 'heading_2',
-          heading_2: {
-            rich_text: [{ type: 'text', text: { content: 'Test Code' } }]
-          }
-        });
-
-        blocks.push({
-          object: 'block',
-          type: 'code',
-          code: {
-            rich_text: [{ type: 'text', text: { content: content.testCode } }],
+            rich_text: [{ type: 'text', text: { content: content.solution } }],
             language: this.mapLanguage(content.language)
           }
         });
       }
     }
 
-    // Add solution if available
-    if (content.solution && !content.solution.includes('not available')) {
-      blocks.push({
-        object: 'block',
-        type: 'heading_2',
-        heading_2: {
-          rich_text: [{ type: 'text', text: { content: 'Official Solution' } }]
-        }
-      });
-
-      blocks.push({
-        object: 'block',
-        type: 'code',
-        code: {
-          rich_text: [{ type: 'text', text: { content: content.solution } }],
-          language: this.mapLanguage(content.language)
-        }
-      });
-    }
+    // Add footer
+    blocks.push({ object: 'block', type: 'divider', divider: {} });
+    blocks.push({
+      object: 'block',
+      type: 'paragraph',
+      paragraph: {
+        rich_text: [
+          {
+            type: 'text',
+            text: { content: `Extracted with Boot.dev Content Extractor v${version}` },
+            annotations: { italic: true }
+          }
+        ]
+      }
+    });
 
     return blocks;
+  },
+
+  // Parse message content to separate text and code blocks
+  parseMessageContent(content) {
+    const parts = [];
+    const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g;
+    let lastIndex = 0;
+    let match;
+
+    while ((match = codeBlockRegex.exec(content)) !== null) {
+      // Add text before code block
+      if (match.index > lastIndex) {
+        const text = content.substring(lastIndex, match.index).trim();
+        if (text) {
+          parts.push({ type: 'text', content: text });
+        }
+      }
+
+      // Add code block
+      parts.push({
+        type: 'code',
+        language: match[1] || 'plain text',
+        content: match[2].trim()
+      });
+
+      lastIndex = match.index + match[0].length;
+    }
+
+    // Add remaining text after last code block
+    if (lastIndex < content.length) {
+      const text = content.substring(lastIndex).trim();
+      if (text) {
+        parts.push({ type: 'text', content: text });
+      }
+    }
+
+    // If no code blocks found, return entire content as text
+    if (parts.length === 0 && content.trim()) {
+      parts.push({ type: 'text', content: content.trim() });
+    }
+
+    return parts;
+  },
+
+  // Split text into chunks to avoid Notion's character limits
+  splitIntoChunks(text, maxLength) {
+    if (text.length <= maxLength) {
+      return [text];
+    }
+
+    const chunks = [];
+    let start = 0;
+
+    while (start < text.length) {
+      let end = start + maxLength;
+
+      // Try to break at a natural boundary (newline, period, space)
+      if (end < text.length) {
+        const lastNewline = text.lastIndexOf('\n', end);
+        const lastPeriod = text.lastIndexOf('.', end);
+        const lastSpace = text.lastIndexOf(' ', end);
+
+        const breakPoint = Math.max(lastNewline, lastPeriod, lastSpace);
+        if (breakPoint > start) {
+          end = breakPoint + 1;
+        }
+      }
+
+      chunks.push(text.substring(start, end));
+      start = end;
+    }
+
+    return chunks;
   },
 
   // Map language names to Notion's supported languages

@@ -1,4 +1,4 @@
-// Popup script - Cross-browser compatible
+// Popup script - Cross-browser compatible with interview support
 // Get the correct API (browser or chrome wrapped in Promise)
 const api = window.browserAPI || (typeof browser !== 'undefined' ? browser : chrome);
 
@@ -105,22 +105,32 @@ function getFileExtension(language) {
 // Format data for download
 function formatData(data, format) {
   const includeMetadata = data.includeMetadata !== false;
+  const isInterview = data.exerciseType === 'interview';
+  const version = api.runtime.getManifest().version;
 
   if (format === 'json') {
     const jsonData = {
       title: data.title || 'Boot.dev Content',
       type: data.type,
+      exerciseType: data.exerciseType,
       language: data.language || 'Unknown',
       description: data.description || 'Not found',
       requirements: data.requirements || [],
       notes: data.notes || [],
-      examples: data.examples || [],
-      allFiles: data.allFiles || [],
-      starterCode: data.starterCode || 'Not found',
-      testCode: data.testCode || 'Not found',
-      userCode: data.userCode || '',
-      solution: data.solution || ''
+      examples: data.examples || []
     };
+
+    if (isInterview) {
+      jsonData.interviewMessages = data.interviewMessages || [];
+      jsonData.expectedPoints = data.expectedPoints || [];
+      jsonData.solution = data.solution || '';
+    } else {
+      jsonData.allFiles = data.allFiles || [];
+      jsonData.starterCode = data.starterCode || 'Not found';
+      jsonData.testCode = data.testCode || 'Not found';
+      jsonData.userCode = data.userCode || '';
+      jsonData.solution = data.solution || '';
+    }
 
     if (includeMetadata) {
       jsonData.url = data.url;
@@ -133,11 +143,13 @@ function formatData(data, format) {
 
     if (includeMetadata) {
       markdown += `**Type:** ${data.type}\n`;
+      markdown += `**Exercise Type:** ${data.exerciseType}\n`;
       markdown += `**Language:** ${data.language || 'Unknown'}\n`;
       markdown += `**URL:** ${data.url}\n`;
       markdown += `**Extracted:** ${new Date(data.timestamp).toLocaleString()}\n\n`;
     } else {
       markdown += `**Type:** ${data.type}\n`;
+      markdown += `**Exercise Type:** ${data.exerciseType}\n`;
       markdown += `**Language:** ${data.language || 'Unknown'}\n\n`;
     }
 
@@ -151,57 +163,65 @@ function formatData(data, format) {
       markdown += '\n';
     }
 
-    if (data.notes && data.notes.length > 0) {
-      markdown += `## Notes\n\n`;
-      data.notes.forEach(note => {
-        markdown += `- ${note}\n`;
-      });
-      markdown += '\n';
-    }
+    // Interview-specific content
+    if (isInterview) {
+      if (data.interviewMessages && data.interviewMessages.length > 0) {
+        markdown += `## Interview Transcript\n\n`;
+        data.interviewMessages.forEach(msg => {
+          markdown += `### ${msg.speaker}\n\n`;
+          markdown += `${msg.content}\n\n`;
+        });
+      }
 
-    if (data.examples && data.examples.length > 0) {
-      markdown += `## Examples\n\n`;
-      data.examples.forEach(example => {
-        const lang = example.language || data.language || '';
-        markdown += `\`\`\`${lang}\n${example.code}\n\`\`\`\n\n`;
-      });
-    }
-
-    if (data.allFiles && data.allFiles.length > 0) {
-      markdown += `## Code Files\n\n`;
-      data.allFiles.forEach(file => {
-        const lang = file.language || data.language || '';
-        markdown += `### ${file.fileName}\n\n`;
-        markdown += `\`\`\`${lang}\n${file.code}\n\`\`\`\n\n`;
-      });
+      if (data.expectedPoints && data.expectedPoints.length > 0) {
+        markdown += `## Official Solution\n\n`;
+        data.expectedPoints.forEach(point => {
+          markdown += `${point.index}. ${point.point}\n`;
+        });
+        markdown += '\n';
+      } else if (data.solution && !data.solution.includes('not available')) {
+        markdown += `## Official Solution\n\n${data.solution}\n\n`;
+      }
     } else {
-      const lang = data.language || 'python';
-      markdown += `## Starter Code\n\`\`\`${lang}\n${data.starterCode || 'Not found'}\n\`\`\`\n\n`;
-      markdown += `## Test Code\n\`\`\`${lang}\n${data.testCode || 'Not found'}\n\`\`\`\n\n`;
+      // Coding exercise content
+      if (data.allFiles && data.allFiles.length > 0) {
+        markdown += `## Code Files\n\n`;
+        data.allFiles.forEach(file => {
+          const lang = file.language || data.language || '';
+          markdown += `### ${file.fileName}\n\n`;
+          markdown += `\`\`\`${lang}\n${file.code}\n\`\`\`\n\n`;
+        });
+      } else {
+        const lang = data.language || 'python';
+        markdown += `## Starter Code\n\`\`\`${lang}\n${data.starterCode || 'Not found'}\n\`\`\`\n\n`;
+        markdown += `## Test Code\n\`\`\`${lang}\n${data.testCode || 'Not found'}\n\`\`\`\n\n`;
+      }
+
+      if (data.userCode && data.userCode !== data.starterCode && data.userCode.trim() !== 'pass') {
+        const lang = data.language || 'python';
+        markdown += `## My Solution Attempt\n\`\`\`${lang}\n${data.userCode}\n\`\`\`\n\n`;
+      }
+
+      if (data.solution && !data.solution.includes('not available')) {
+        const lang = data.language || 'python';
+        markdown += `## Official Solution\n\`\`\`${lang}\n${data.solution}\n\`\`\`\n\n`;
+      }
     }
 
-    if (data.userCode && data.userCode !== data.starterCode && data.userCode.trim() !== 'pass') {
-      const lang = data.language || 'python';
-      markdown += `## My Solution Attempt\n\`\`\`${lang}\n${data.userCode}\n\`\`\`\n\n`;
-    }
-
-    if (data.solution && !data.solution.includes('not available')) {
-      const lang = data.language || 'python';
-      markdown += `## Official Solution\n\`\`\`${lang}\n${data.solution}\n\`\`\`\n\n`;
-    }
-
-    markdown += `---\n*Extracted with Boot.dev Content Extractor*\n`;
+    markdown += `---\n*Extracted with Boot.dev Content Extractor v${version}*\n`;
     return markdown;
   } else if (format === 'text') {
     let text = `${data.title || 'Boot.dev Content'}\n${'='.repeat(50)}\n\n`;
 
     if (includeMetadata) {
       text += `Type: ${data.type}\n`;
+      text += `Exercise Type: ${data.exerciseType}\n`;
       text += `Language: ${data.language || 'Unknown'}\n`;
       text += `URL: ${data.url}\n`;
       text += `Extracted: ${new Date(data.timestamp).toLocaleString()}\n\n`;
     } else {
       text += `Type: ${data.type}\n`;
+      text += `Exercise Type: ${data.exerciseType}\n`;
       text += `Language: ${data.language || 'Unknown'}\n\n`;
     }
 
@@ -215,40 +235,46 @@ function formatData(data, format) {
       text += '\n';
     }
 
-    if (data.notes && data.notes.length > 0) {
-      text += `NOTES:\n`;
-      data.notes.forEach(note => {
-        text += `- ${note}\n`;
-      });
-      text += '\n';
-    }
+    // Interview-specific content
+    if (isInterview) {
+      if (data.interviewMessages && data.interviewMessages.length > 0) {
+        text += `INTERVIEW TRANSCRIPT:\n\n`;
+        data.interviewMessages.forEach(msg => {
+          text += `[${msg.speaker}]\n${msg.content}\n\n`;
+        });
+      }
 
-    if (data.examples && data.examples.length > 0) {
-      text += `EXAMPLES:\n\n`;
-      data.examples.forEach(example => {
-        text += `${example.code}\n\n`;
-      });
-    }
-
-    if (data.allFiles && data.allFiles.length > 0) {
-      text += `CODE FILES:\n\n`;
-      data.allFiles.forEach(file => {
-        text += `${file.fileName}:\n${file.code}\n\n`;
-      });
+      if (data.expectedPoints && data.expectedPoints.length > 0) {
+        text += `OFFICIAL SOLUTION:\n`;
+        data.expectedPoints.forEach(point => {
+          text += `${point.index}. ${point.point}\n`;
+        });
+        text += '\n';
+      } else if (data.solution && !data.solution.includes('not available')) {
+        text += `OFFICIAL SOLUTION:\n${data.solution}\n\n`;
+      }
     } else {
-      text += `STARTER CODE:\n${data.starterCode || 'Not found'}\n\n`;
-      text += `TEST CODE:\n${data.testCode || 'Not found'}\n\n`;
+      // Coding exercise content
+      if (data.allFiles && data.allFiles.length > 0) {
+        text += `CODE FILES:\n\n`;
+        data.allFiles.forEach(file => {
+          text += `${file.fileName}:\n${file.code}\n\n`;
+        });
+      } else {
+        text += `STARTER CODE:\n${data.starterCode || 'Not found'}\n\n`;
+        text += `TEST CODE:\n${data.testCode || 'Not found'}\n\n`;
+      }
+
+      if (data.userCode && data.userCode !== data.starterCode && data.userCode.trim() !== 'pass') {
+        text += `MY SOLUTION ATTEMPT:\n${data.userCode}\n\n`;
+      }
+
+      if (data.solution && !data.solution.includes('not available')) {
+        text += `OFFICIAL SOLUTION:\n${data.solution}\n\n`;
+      }
     }
 
-    if (data.userCode && data.userCode !== data.starterCode && data.userCode.trim() !== 'pass') {
-      text += `MY SOLUTION ATTEMPT:\n${data.userCode}\n\n`;
-    }
-
-    if (data.solution && !data.solution.includes('not available')) {
-      text += `OFFICIAL SOLUTION:\n${data.solution}\n\n`;
-    }
-
-    text += `${'='.repeat(50)}\nExtracted with Boot.dev Content Extractor\n`;
+    text += `${'='.repeat(50)}\nExtracted with Boot.dev Content Extractor v${version}\n`;
     return text;
   }
 }
@@ -279,10 +305,18 @@ async function extractContent() {
       const preview = document.getElementById('preview');
       preview.style.display = 'block';
 
-      let previewText = `Title: ${currentData.title || 'N/A'}\nType: ${currentData.type}\nLanguage: ${currentData.language || 'Unknown'}`;
-      if (currentData.allFiles && currentData.allFiles.length > 0) {
+      let previewText = `Title: ${currentData.title || 'N/A'}\nType: ${currentData.type}\nExercise Type: ${currentData.exerciseType}\nLanguage: ${currentData.language || 'Unknown'}`;
+
+      if (currentData.exerciseType === 'interview') {
+        const msgCount = currentData.interviewMessages?.length || 0;
+        previewText += `\nInterview Messages: ${msgCount}`;
+        if (currentData.expectedPoints?.length > 0) {
+          previewText += `\nExpected Points: ${currentData.expectedPoints.length}`;
+        }
+      } else if (currentData.allFiles && currentData.allFiles.length > 0) {
         previewText += `\nFiles: ${currentData.allFiles.map(f => f.fileName).join(', ')}`;
       }
+
       preview.textContent = previewText;
 
       return true;
@@ -338,7 +372,8 @@ async function handleNotionExport() {
     const result = await NotionAPI.createPage(
       settings.notionToken,
       databaseId,
-      currentData
+      currentData,
+      api.runtime.getManifest().version
     );
 
     // Show success

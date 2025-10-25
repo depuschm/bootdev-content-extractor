@@ -1,5 +1,5 @@
 // Content script that extracts data from Boot.dev pages
-// Cross-browser compatible version
+// Cross-browser compatible version with interview exercise support
 
 // Get the correct API (browser or chrome wrapped in Promise)
 const api = window.browserAPI || browser || chrome;
@@ -160,7 +160,10 @@ async function extractContent() {
     userCode: '',
     solution: '',
     language: 'python',
-    includeMetadata: settings.includeMetadata
+    includeMetadata: settings.includeMetadata,
+    exerciseType: 'coding', // 'coding' or 'interview'
+    interviewMessages: [], // For interview exercises
+    expectedPoints: [] // For interview solution
   };
 
   // Detect programming language
@@ -169,15 +172,277 @@ async function extractContent() {
   // Extract viewer content (left side)
   await extractViewerContent(data);
 
-  // Extract code from all tabs
-  await extractAllTabs(data);
+  // Detect exercise type
+  const hasCodeEditor = document.querySelector('.cm-content[role="textbox"]');
+  const hasInterview = document.querySelector('#interview-side');
+
+  if (hasInterview && !hasCodeEditor) {
+    // This is an interview exercise
+    data.exerciseType = 'interview';
+    console.log('📝 Detected interview exercise');
+    await extractInterview(data);
+  } else {
+    // This is a coding exercise
+    data.exerciseType = 'coding';
+    console.log('💻 Detected coding exercise');
+    await extractAllTabs(data);
+  }
 
   // Extract solution if enabled and available
   if (settings.extractSolution) {
-    await extractSolution(data);
+    if (data.exerciseType === 'interview') {
+      await extractInterviewSolution(data);
+    } else {
+      await extractSolution(data);
+    }
   }
 
   return data;
+}
+
+// Extract interview messages
+async function extractInterview(data) {
+  const interviewSide = document.querySelector('#interview-side');
+  if (!interviewSide) return;
+
+  console.log('🗣️ Extracting interview messages...');
+
+  // Find all message containers by traversing the DOM
+  // Look for grids with the specific pattern (more robust than hardcoded class)
+  const messageContainers = [];
+
+  // Get all divs that have the grid structure we're looking for
+  const allDivs = interviewSide.querySelectorAll('div');
+  allDivs.forEach(div => {
+    // Check if it has an img (profile) and a .viewer (content)
+    const hasImg = div.querySelector('img') !== null;
+    const hasViewer = div.querySelector('.viewer') !== null;
+
+    // Check if it's a grid with 2 columns (profile + content pattern)
+    const classes = div.className || '';
+    if (hasImg && hasViewer && classes.includes('grid')) {
+      messageContainers.push(div);
+    }
+  });
+
+  messageContainers.forEach((container, index) => {
+    // Determine speaker based on position
+    // Boots always starts (index 0), then alternates: User (1), Boots (2), User (3), etc.
+    // Pattern: even index = Boots, odd index = User
+    const isBoots = index % 2 === 0;
+
+    // Get the message content from .viewer div
+    const viewer = container.querySelector('.viewer');
+    if (!viewer) return;
+
+    // Clone the viewer to avoid modifying the original
+    const clonedViewer = viewer.cloneNode(true);
+
+    // Remove copy buttons from clone
+    clonedViewer.querySelectorAll('button').forEach(btn => btn.remove());
+
+    // Extract code blocks by walking the DOM tree in order
+    const codeBlocks = [];
+    const processNode = (node) => {
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        if (node.tagName === 'PRE') {
+          const codeBlock = node.querySelector('code');
+          if (codeBlock) {
+            const code = codeBlock.textContent.trim();
+            const lang = codeBlock.className.match(/language-(\w+)/)?.[1] || '';
+
+            // Replace code block with a placeholder
+            const placeholder = `__CODE_BLOCK_${codeBlocks.length}__`;
+            const span = document.createElement('span');
+            span.textContent = placeholder;
+            node.replaceWith(span);
+
+            codeBlocks.push({ code, lang, placeholder });
+            return; // Don't process children since we replaced the node
+          }
+        }
+
+        // Process children
+        Array.from(node.childNodes).forEach(child => processNode(child));
+      }
+    };
+
+    processNode(clonedViewer);
+
+    // Get text content (now with placeholders for code blocks)
+    let messageText = clonedViewer.textContent
+      .replace(/\n\s*\n\s*\n/g, '\n\n') // Reduce multiple newlines to double
+      .replace(/[ \t]+/g, ' ') // Reduce multiple spaces/tabs to single space
+      .replace(/\n /g, '\n') // Remove leading spaces after newlines
+      .replace(/ \n/g, '\n') // Remove trailing spaces before newlines
+      .trim();
+
+    // Replace placeholders with formatted code blocks
+    codeBlocks.forEach(({ code, lang, placeholder }) => {
+      const formattedCode = lang
+        ? `\n\`\`\`${lang}\n${code}\n\`\`\`\n`
+        : `\n\`\`\`\n${code}\n\`\`\`\n`;
+      messageText = messageText.replace(placeholder, formattedCode);
+    });
+
+    // Clean up any remaining formatting issues
+    messageText = messageText
+      .replace(/\n{3,}/g, '\n\n') // Max two consecutive newlines
+      .trim();
+
+    if (messageText) {
+      data.interviewMessages.push({
+        index: index + 1,
+        speaker: isBoots ? 'Boots' : 'User',
+        content: messageText,
+        hasCode: codeBlocks.length > 0,
+        codeBlocks: codeBlocks.map(cb => ({ code: cb.code, language: cb.lang }))
+      });
+
+      console.log(`  ✅ Message ${index + 1}: ${isBoots ? 'Boots' : 'User'} (${messageText.length} chars, ${codeBlocks.length} code blocks)`);
+    }
+  });
+
+  console.log(`✅ Extracted ${data.interviewMessages.length} interview messages`);
+}
+
+// Extract interview solution (expected points)
+async function extractInterviewSolution(data) {
+  try {
+    console.log('\n💡 Looking for interview solution...');
+
+    // Look for the solution section
+    const solutionContainer = document.querySelector('#interview-side');
+    if (!solutionContainer) {
+      data.solution = 'Solution not available (not opened yet)';
+      return;
+    }
+
+    // Look for "Hide Solution" or "Show Solution" button to identify if solution is visible
+    const solutionButton = Array.from(solutionContainer.querySelectorAll('button'))
+      .find(btn => btn.textContent.includes('Solution'));
+
+    if (!solutionButton || solutionButton.textContent.includes('Show')) {
+      data.solution = 'Solution not available (not opened yet)';
+      return;
+    }
+
+    // Find all message-like containers
+    const allContainers = [];
+    const allDivs = solutionContainer.querySelectorAll('div');
+    allDivs.forEach(div => {
+      const hasImg = div.querySelector('img') !== null;
+      const hasViewer = div.querySelector('.viewer') !== null;
+      const classes = div.className || '';
+      if (hasImg && hasViewer && classes.includes('grid')) {
+        allContainers.push(div);
+      }
+    });
+
+    // The solution is typically in the last viewer container after "Lesson Complete!" message
+    // Look for it by finding content after the interview messages
+    let solutionViewer = null;
+    let foundComplete = false;
+
+    // Walk through the interview side to find solution content
+    for (const container of allContainers) {
+      const viewer = container.querySelector('.viewer');
+      if (viewer) {
+        const text = viewer.textContent.trim();
+
+        // Skip interview messages (they're already extracted)
+        if (data.interviewMessages.some(msg => text.includes(msg.content.substring(0, 50)))) {
+          continue;
+        }
+
+        // Look for "Lesson Complete" or success messages
+        if (text.toLowerCase().includes('complete') || text.toLowerCase().includes('success')) {
+          foundComplete = true;
+          continue;
+        }
+
+        // After finding complete message, the next viewer is likely the solution
+        if (foundComplete && !solutionViewer) {
+          solutionViewer = viewer;
+          break;
+        }
+      }
+    }
+
+    // Also check for solution in a separate container (like a bordered div)
+    if (!solutionViewer) {
+      const borderedDivs = solutionContainer.querySelectorAll('div[class*="border"]');
+      for (const div of borderedDivs) {
+        const text = div.textContent.trim();
+        if (text.toLowerCase().includes('expecting') || text.toLowerCase().includes('point')) {
+          solutionViewer = div;
+          break;
+        }
+      }
+    }
+
+    if (solutionViewer) {
+      // Clone and process the solution viewer like we do for description
+      const clonedSolution = solutionViewer.cloneNode(true);
+      clonedSolution.querySelectorAll('button').forEach(btn => btn.remove());
+
+      // Process the solution HTML to markdown format
+      const solutionLines = [];
+      const children = Array.from(clonedSolution.children);
+
+      for (const element of children) {
+        const tagName = element.tagName.toLowerCase();
+        const text = element.textContent.trim();
+
+        // Paragraphs
+        if (tagName === 'p') {
+          if (text) {
+            solutionLines.push(text);
+            solutionLines.push('');
+          }
+          continue;
+        }
+
+        // Unordered lists
+        if (tagName === 'ul') {
+          const listItems = Array.from(element.children).filter(c => c.tagName.toLowerCase() === 'li');
+          listItems.forEach(li => {
+            const itemText = li.textContent.trim();
+            if (itemText) {
+              solutionLines.push(`- ${itemText}`);
+            }
+          });
+          solutionLines.push('');
+          continue;
+        }
+
+        // Ordered lists
+        if (tagName === 'ol') {
+          const listItems = Array.from(element.children).filter(c => c.tagName.toLowerCase() === 'li');
+          listItems.forEach((li, index) => {
+            const itemText = li.textContent.trim();
+            if (itemText) {
+              solutionLines.push(`${index + 1}. ${itemText}`);
+            }
+          });
+          solutionLines.push('');
+          continue;
+        }
+      }
+
+      data.solution = solutionLines
+        .join('\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+
+      console.log(`  ✅ Extracted solution (${data.solution.length} chars)`);
+    } else {
+      data.solution = 'Solution not available (not opened yet)';
+    }
+  } catch (e) {
+    console.log('Could not extract interview solution:', e);
+    data.solution = 'Solution extraction failed';
+  }
 }
 
 // Extract content from the viewer div
@@ -191,60 +456,163 @@ async function extractViewerContent(data) {
     data.title = titleElement.textContent.trim();
   }
 
-  // Get paragraphs
-  const paragraphs = viewerDiv.querySelectorAll('p');
-  const paragraphTexts = [];
-  paragraphs.forEach(p => {
-    const text = p.textContent.trim();
-    if (text && text.length > 0) {
-      paragraphTexts.push(text);
-    }
-  });
+  // Clone viewer to avoid modifying original
+  const clonedViewer = viewerDiv.cloneNode(true);
 
-  if (paragraphTexts.length > 0) {
-    data.description = paragraphTexts[0];
+  // Remove copy buttons and title
+  clonedViewer.querySelectorAll('button').forEach(btn => btn.remove());
+  const h1 = clonedViewer.querySelector('h1');
+  if (h1) h1.remove();
+
+  // Build description from all content
+  let descriptionLines = [];
+
+  // Helper function to process list items recursively
+  function processListItem(li, indent = '', outputLines = []) {
+    let mainText = '';
+
+    // Process direct children of this <li>
+    for (const child of li.childNodes) {
+      if (child.nodeType === Node.TEXT_NODE) {
+        const text = child.textContent.trim();
+        if (text) {
+          mainText += (mainText ? ' ' : '') + text;
+        }
+      } else if (child.nodeType === Node.ELEMENT_NODE) {
+        const tagName = child.tagName.toLowerCase();
+
+        if (tagName === 'p') {
+          const text = child.textContent.trim();
+          if (text) {
+            mainText += (mainText ? ' ' : '') + text;
+          }
+        } else if (tagName === 'ul') {
+          // Nested unordered list - add items on separate lines
+          const nestedItems = Array.from(child.children).filter(c => c.tagName.toLowerCase() === 'li');
+          nestedItems.forEach(nestedLi => {
+            const nestedLines = [];
+            processListItem(nestedLi, indent + '  ', nestedLines);
+            nestedLines.forEach(line => outputLines.push(line));
+          });
+        } else if (tagName === 'ol') {
+          // Nested ordered list - add items on separate lines
+          const nestedItems = Array.from(child.children).filter(c => c.tagName.toLowerCase() === 'li');
+          nestedItems.forEach((nestedLi, idx) => {
+            const nestedLines = [];
+            processListItem(nestedLi, indent + '  ', nestedLines);
+            // Replace the bullet with numbered format
+            if (nestedLines.length > 0) {
+              nestedLines[0] = nestedLines[0].replace(/^(\s*)- /, `$1${idx + 1}. `);
+            }
+            nestedLines.forEach(line => outputLines.push(line));
+          });
+        } else if (tagName === 'code') {
+          const text = child.textContent.trim();
+          if (text) {
+            mainText += (mainText ? ' ' : '') + `\`${text}\``;
+          }
+        } else {
+          const text = child.textContent.trim();
+          if (text) {
+            mainText += (mainText ? ' ' : '') + text;
+          }
+        }
+      }
+    }
+
+    // Add the main text as the first line
+    if (mainText) {
+      outputLines.unshift(`${indent}- ${mainText}`);
+    }
+
+    return outputLines;
   }
 
-  // Get requirements (ordered lists)
-  const orderedLists = viewerDiv.querySelectorAll('ol');
-  orderedLists.forEach(ol => {
-    const listItems = ol.querySelectorAll('li');
-    listItems.forEach(li => {
-      const text = li.textContent.trim();
-      if (text) data.requirements.push(text);
-    });
-  });
+  // Process all direct children in order
+  const children = Array.from(clonedViewer.children);
 
-  // Get notes (unordered lists)
-  const unorderedLists = viewerDiv.querySelectorAll('ul');
-  unorderedLists.forEach(ul => {
-    const listItems = ul.querySelectorAll('li');
-    listItems.forEach(li => {
-      const text = li.textContent.trim();
-      if (text) data.notes.push(text);
-    });
-  });
+  for (const element of children) {
+    const tagName = element.tagName.toLowerCase();
+    const text = element.textContent.trim();
 
-  // Get code examples
-  const codeBlocks = viewerDiv.querySelectorAll('pre code');
-  codeBlocks.forEach((codeBlock, index) => {
-    const code = codeBlock.textContent.trim();
-    if (code) {
-      const className = codeBlock.className;
-      let exampleLang = data.language;
-
-      if (className) {
-        const langMatch = className.match(/language-(\w+)/);
-        if (langMatch) exampleLang = langMatch[1];
+    // Paragraphs
+    if (tagName === 'p') {
+      if (text) {
+        descriptionLines.push(text);
+        descriptionLines.push(''); // Add blank line after paragraph
       }
-
-      data.examples.push({
-        index: index + 1,
-        code: code,
-        language: exampleLang
-      });
+      continue;
     }
-  });
+
+    // Unordered lists
+    if (tagName === 'ul') {
+      const listItems = Array.from(element.children).filter(c => c.tagName.toLowerCase() === 'li');
+      listItems.forEach(li => {
+        const lines = [];
+        processListItem(li, '', lines);
+        lines.forEach(line => descriptionLines.push(line));
+      });
+      descriptionLines.push(''); // Add blank line after list
+      continue;
+    }
+
+    // Ordered lists
+    if (tagName === 'ol') {
+      const listItems = Array.from(element.children).filter(c => c.tagName.toLowerCase() === 'li');
+      listItems.forEach((li, index) => {
+        const lines = [];
+        processListItem(li, '', lines);
+        // Replace the first bullet with number
+        if (lines.length > 0) {
+          lines[0] = lines[0].replace(/^- /, `${index + 1}. `);
+        }
+        lines.forEach(line => descriptionLines.push(line));
+      });
+      descriptionLines.push(''); // Add blank line after list
+      continue;
+    }
+
+    // Code blocks
+    if (tagName === 'div' || tagName === 'pre') {
+      const codeBlock = element.querySelector('code');
+      if (codeBlock) {
+        const code = codeBlock.textContent.trim();
+        if (code) {
+          // Detect language
+          let lang = data.language;
+          const className = codeBlock.className;
+          if (className) {
+            const langMatch = className.match(/language-(\w+)/);
+            if (langMatch) {
+              lang = langMatch[1];
+            }
+          }
+
+          descriptionLines.push(`\`\`\`${lang}`);
+          descriptionLines.push(code);
+          descriptionLines.push('```');
+          descriptionLines.push(''); // Add blank line after code block
+        }
+      }
+      continue;
+    }
+
+    // Headings (h2, h3, etc.)
+    if (tagName === 'h2' || tagName === 'h3' || tagName === 'h4') {
+      if (text) {
+        const level = tagName === 'h2' ? '##' : tagName === 'h3' ? '###' : '####';
+        descriptionLines.push(`${level} ${text}`);
+        descriptionLines.push(''); // Add blank line after heading
+      }
+      continue;
+    }
+  }
+
+  // Join all lines and clean up excessive blank lines
+  data.description = descriptionLines
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n') // Max two consecutive newlines
+    .trim();
 }
 
 // Extract code from all editor tabs
@@ -263,7 +631,7 @@ async function extractAllTabs(data) {
   // Process each tab
   for (let i = 0; i < tabButtons.length; i++) {
     const btn = tabButtons[i];
-    console.log(`\n🔒 Processing tab #${i + 1}...`);
+    console.log(`\n🔓 Processing tab #${i + 1}...`);
 
     // Click tab to activate it
     btn.click();
@@ -341,7 +709,7 @@ async function extractAllTabs(data) {
   }
 }
 
-// Extract solution code if available
+// Extract solution code if available (for coding exercises)
 async function extractSolution(data) {
   try {
     // Check for solution in merge view (split view)
