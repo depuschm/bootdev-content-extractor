@@ -241,54 +241,14 @@ async function extractInterview(data) {
     // Remove copy buttons from clone
     clonedViewer.querySelectorAll('button').forEach(btn => btn.remove());
 
-    // Extract code blocks by walking the DOM tree in order
-    const codeBlocks = [];
-    const processNode = (node) => {
-      if (node.nodeType === Node.ELEMENT_NODE) {
-        if (node.tagName === 'PRE') {
-          const codeBlock = node.querySelector('code');
-          if (codeBlock) {
-            const code = codeBlock.textContent.trim();
-            const lang = codeBlock.className.match(/language-(\w+)/)?.[1] || '';
-
-            // Replace code block with a placeholder
-            const placeholder = `__CODE_BLOCK_${codeBlocks.length}__`;
-            const span = document.createElement('span');
-            span.textContent = placeholder;
-            node.replaceWith(span);
-
-            codeBlocks.push({ code, lang, placeholder });
-            return; // Don't process children since we replaced the node
-          }
-        }
-
-        // Process children
-        Array.from(node.childNodes).forEach(child => processNode(child));
-      }
-    };
-
-    processNode(clonedViewer);
+    // Extract code blocks in order
+    const codeBlocks = HTMLParser.extractCodeBlocksInOrder(clonedViewer);
 
     // Get text content (now with placeholders for code blocks)
-    let messageText = clonedViewer.textContent
-      .replace(/\n\s*\n\s*\n/g, '\n\n') // Reduce multiple newlines to double
-      .replace(/[ \t]+/g, ' ') // Reduce multiple spaces/tabs to single space
-      .replace(/\n /g, '\n') // Remove leading spaces after newlines
-      .replace(/ \n/g, '\n') // Remove trailing spaces before newlines
-      .trim();
+    let messageText = HTMLParser.cleanText(clonedViewer.textContent);
 
     // Replace placeholders with formatted code blocks
-    codeBlocks.forEach(({ code, lang, placeholder }) => {
-      const formattedCode = lang
-        ? `\n\`\`\`${lang}\n${code}\n\`\`\`\n`
-        : `\n\`\`\`\n${code}\n\`\`\`\n`;
-      messageText = messageText.replace(placeholder, formattedCode);
-    });
-
-    // Clean up any remaining formatting issues
-    messageText = messageText
-      .replace(/\n{3,}/g, '\n\n') // Max two consecutive newlines
-      .trim();
+    messageText = HTMLParser.insertCodeBlocks(messageText, codeBlocks);
 
     if (messageText) {
       data.interviewMessages.push({
@@ -382,58 +342,10 @@ async function extractInterviewSolution(data) {
     }
 
     if (solutionViewer) {
-      // Clone and process the solution viewer like we do for description
-      const clonedSolution = solutionViewer.cloneNode(true);
-      clonedSolution.querySelectorAll('button').forEach(btn => btn.remove());
-
-      // Process the solution HTML to markdown format
-      const solutionLines = [];
-      const children = Array.from(clonedSolution.children);
-
-      for (const element of children) {
-        const tagName = element.tagName.toLowerCase();
-        const text = element.textContent.trim();
-
-        // Paragraphs
-        if (tagName === 'p') {
-          if (text) {
-            solutionLines.push(text);
-            solutionLines.push('');
-          }
-          continue;
-        }
-
-        // Unordered lists
-        if (tagName === 'ul') {
-          const listItems = Array.from(element.children).filter(c => c.tagName.toLowerCase() === 'li');
-          listItems.forEach(li => {
-            const itemText = li.textContent.trim();
-            if (itemText) {
-              solutionLines.push(`- ${itemText}`);
-            }
-          });
-          solutionLines.push('');
-          continue;
-        }
-
-        // Ordered lists
-        if (tagName === 'ol') {
-          const listItems = Array.from(element.children).filter(c => c.tagName.toLowerCase() === 'li');
-          listItems.forEach((li, index) => {
-            const itemText = li.textContent.trim();
-            if (itemText) {
-              solutionLines.push(`${index + 1}. ${itemText}`);
-            }
-          });
-          solutionLines.push('');
-          continue;
-        }
-      }
-
-      data.solution = solutionLines
-        .join('\n')
-        .replace(/\n{3,}/g, '\n\n')
-        .trim();
+      // Use HTMLParser to convert solution to markdown
+      data.solution = HTMLParser.parseToMarkdown(solutionViewer, {
+        defaultLanguage: data.language
+      });
 
       console.log(`  ✅ Extracted solution (${data.solution.length} chars)`);
     } else {
@@ -456,163 +368,10 @@ async function extractViewerContent(data) {
     data.title = titleElement.textContent.trim();
   }
 
-  // Clone viewer to avoid modifying original
-  const clonedViewer = viewerDiv.cloneNode(true);
-
-  // Remove copy buttons and title
-  clonedViewer.querySelectorAll('button').forEach(btn => btn.remove());
-  const h1 = clonedViewer.querySelector('h1');
-  if (h1) h1.remove();
-
-  // Build description from all content
-  let descriptionLines = [];
-
-  // Helper function to process list items recursively
-  function processListItem(li, indent = '', outputLines = []) {
-    let mainText = '';
-
-    // Process direct children of this <li>
-    for (const child of li.childNodes) {
-      if (child.nodeType === Node.TEXT_NODE) {
-        const text = child.textContent.trim();
-        if (text) {
-          mainText += (mainText ? ' ' : '') + text;
-        }
-      } else if (child.nodeType === Node.ELEMENT_NODE) {
-        const tagName = child.tagName.toLowerCase();
-
-        if (tagName === 'p') {
-          const text = child.textContent.trim();
-          if (text) {
-            mainText += (mainText ? ' ' : '') + text;
-          }
-        } else if (tagName === 'ul') {
-          // Nested unordered list - add items on separate lines
-          const nestedItems = Array.from(child.children).filter(c => c.tagName.toLowerCase() === 'li');
-          nestedItems.forEach(nestedLi => {
-            const nestedLines = [];
-            processListItem(nestedLi, indent + '  ', nestedLines);
-            nestedLines.forEach(line => outputLines.push(line));
-          });
-        } else if (tagName === 'ol') {
-          // Nested ordered list - add items on separate lines
-          const nestedItems = Array.from(child.children).filter(c => c.tagName.toLowerCase() === 'li');
-          nestedItems.forEach((nestedLi, idx) => {
-            const nestedLines = [];
-            processListItem(nestedLi, indent + '  ', nestedLines);
-            // Replace the bullet with numbered format
-            if (nestedLines.length > 0) {
-              nestedLines[0] = nestedLines[0].replace(/^(\s*)- /, `$1${idx + 1}. `);
-            }
-            nestedLines.forEach(line => outputLines.push(line));
-          });
-        } else if (tagName === 'code') {
-          const text = child.textContent.trim();
-          if (text) {
-            mainText += (mainText ? ' ' : '') + `\`${text}\``;
-          }
-        } else {
-          const text = child.textContent.trim();
-          if (text) {
-            mainText += (mainText ? ' ' : '') + text;
-          }
-        }
-      }
-    }
-
-    // Add the main text as the first line
-    if (mainText) {
-      outputLines.unshift(`${indent}- ${mainText}`);
-    }
-
-    return outputLines;
-  }
-
-  // Process all direct children in order
-  const children = Array.from(clonedViewer.children);
-
-  for (const element of children) {
-    const tagName = element.tagName.toLowerCase();
-    const text = element.textContent.trim();
-
-    // Paragraphs
-    if (tagName === 'p') {
-      if (text) {
-        descriptionLines.push(text);
-        descriptionLines.push(''); // Add blank line after paragraph
-      }
-      continue;
-    }
-
-    // Unordered lists
-    if (tagName === 'ul') {
-      const listItems = Array.from(element.children).filter(c => c.tagName.toLowerCase() === 'li');
-      listItems.forEach(li => {
-        const lines = [];
-        processListItem(li, '', lines);
-        lines.forEach(line => descriptionLines.push(line));
-      });
-      descriptionLines.push(''); // Add blank line after list
-      continue;
-    }
-
-    // Ordered lists
-    if (tagName === 'ol') {
-      const listItems = Array.from(element.children).filter(c => c.tagName.toLowerCase() === 'li');
-      listItems.forEach((li, index) => {
-        const lines = [];
-        processListItem(li, '', lines);
-        // Replace the first bullet with number
-        if (lines.length > 0) {
-          lines[0] = lines[0].replace(/^- /, `${index + 1}. `);
-        }
-        lines.forEach(line => descriptionLines.push(line));
-      });
-      descriptionLines.push(''); // Add blank line after list
-      continue;
-    }
-
-    // Code blocks
-    if (tagName === 'div' || tagName === 'pre') {
-      const codeBlock = element.querySelector('code');
-      if (codeBlock) {
-        const code = codeBlock.textContent.trim();
-        if (code) {
-          // Detect language
-          let lang = data.language;
-          const className = codeBlock.className;
-          if (className) {
-            const langMatch = className.match(/language-(\w+)/);
-            if (langMatch) {
-              lang = langMatch[1];
-            }
-          }
-
-          descriptionLines.push(`\`\`\`${lang}`);
-          descriptionLines.push(code);
-          descriptionLines.push('```');
-          descriptionLines.push(''); // Add blank line after code block
-        }
-      }
-      continue;
-    }
-
-    // Headings (h2, h3, etc.)
-    if (tagName === 'h2' || tagName === 'h3' || tagName === 'h4') {
-      if (text) {
-        const level = tagName === 'h2' ? '##' : tagName === 'h3' ? '###' : '####';
-        descriptionLines.push(`${level} ${text}`);
-        descriptionLines.push(''); // Add blank line after heading
-      }
-      continue;
-    }
-  }
-
-  // Join all lines and clean up excessive blank lines
-  data.description = descriptionLines
-    .join('\n')
-    .replace(/\n{3,}/g, '\n\n') // Max two consecutive newlines
-    .trim();
+  // Use HTMLParser to convert content to markdown
+  data.description = HTMLParser.parseToMarkdown(viewerDiv, {
+    defaultLanguage: data.language
+  });
 }
 
 // Extract code from all editor tabs

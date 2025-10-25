@@ -27,6 +27,7 @@
       ],
       "js": [
         "browser-polyfill.js",
+        "html-parser.js",
         "content.js"
       ],
       "run_at": "document_idle"
