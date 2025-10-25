@@ -9,8 +9,8 @@ async function checkPage() {
   const tabs = await api.tabs.query({ active: true, currentWindow: true });
   const tab = tabs[0];
 
-  if (!tab.url.includes('boot.dev/challenges/') && !tab.url.includes('boot.dev/lessons/')) {
-    document.getElementById('statusText').textContent = 'Not on a Boot.dev challenge or lesson page';
+  if (!Validator.isValidBootdevPage(tab.url)) {
+    document.getElementById('statusText').textContent = Config.MESSAGES.NOT_ON_BOOTDEV;
     document.getElementById('extractBtn').disabled = true;
     document.getElementById('downloadBtn').disabled = true;
     document.getElementById('copyBtn').disabled = true;
@@ -18,7 +18,7 @@ async function checkPage() {
     return false;
   }
 
-  document.getElementById('statusText').textContent = 'Ready to extract!';
+  document.getElementById('statusText').textContent = Config.MESSAGES.READY_TO_EXTRACT;
   document.getElementById('status').classList.add('ready');
 
   // Check if Notion is configured
@@ -30,17 +30,16 @@ async function checkPage() {
 // Check Notion configuration
 async function checkNotionConfig() {
   const settings = await api.storage.sync.get({
-    notionEnabled: false,
+    notionEnabled: Config.DEFAULTS.NOTION_ENABLED,
     notionToken: '',
     databases: []
   });
 
   const notionBtn = document.getElementById('notionBtn');
 
-  // Check if at least one database is configured
-  const hasAnyDatabase = settings.databases && settings.databases.length > 0;
+  const validation = Validator.validateNotionSettings(settings);
 
-  if (!settings.notionEnabled || !settings.notionToken || !hasAnyDatabase) {
+  if (!validation.valid) {
     notionBtn.disabled = true;
     notionBtn.textContent = '🔗 Configure Notion in Options';
   } else {
@@ -81,34 +80,16 @@ function getDatabaseIdForType(type, databases) {
 
 // Get file extension for language
 function getFileExtension(language) {
-  const languageMap = {
-    'python': 'py',
-    'javascript': 'js',
-    'typescript': 'ts',
-    'go': 'go',
-    'sql': 'sql',
-    'c': 'c',
-    'cpp': 'cpp',
-    'rust': 'rs',
-    'java': 'java',
-    'shell': 'sh',
-    'json': 'json',
-    'yaml': 'yaml',
-    'markdown': 'md',
-    'html': 'html',
-    'css': 'css'
-  };
-
-  return languageMap[language?.toLowerCase()] || 'txt';
+  return Config.FILE_EXTENSIONS[language?.toLowerCase()] || 'txt';
 }
 
 // Format data for download
 function formatData(data, format) {
   const includeMetadata = data.includeMetadata !== false;
-  const isInterview = data.exerciseType === 'interview';
+  const isInterview = data.exerciseType === Config.EXERCISE_TYPES.INTERVIEW;
   const version = api.runtime.getManifest().version;
 
-  if (format === 'json') {
+  if (format === Config.FORMATS.JSON) {
     const jsonData = {
       title: data.title || 'Boot.dev Content',
       type: data.type,
@@ -138,7 +119,7 @@ function formatData(data, format) {
     }
 
     return JSON.stringify(jsonData, null, 2);
-  } else if (format === 'markdown') {
+  } else if (format === Config.FORMATS.MARKDOWN) {
     let markdown = `# ${data.title || 'Boot.dev Content'}\n\n`;
 
     if (includeMetadata) {
@@ -208,9 +189,9 @@ function formatData(data, format) {
       }
     }
 
-    markdown += `---\n*Extracted with Boot.dev Content Extractor v${version}*\n`;
+    markdown += `---\n*Extracted with ${Config.EXTENSION_NAME} v${version}*\n`;
     return markdown;
-  } else if (format === 'text') {
+  } else if (format === Config.FORMATS.TEXT) {
     let text = `${data.title || 'Boot.dev Content'}\n${'='.repeat(50)}\n\n`;
 
     if (includeMetadata) {
@@ -274,7 +255,7 @@ function formatData(data, format) {
       }
     }
 
-    text += `${'='.repeat(50)}\nExtracted with Boot.dev Content Extractor v${version}\n`;
+    text += `${'='.repeat(50)}\nExtracted with ${Config.EXTENSION_NAME} v${version}\n`;
     return text;
   }
 }
@@ -300,14 +281,14 @@ async function extractContent() {
 
     if (response && response.success && response.data) {
       currentData = response.data;
-      document.getElementById('statusText').textContent = 'Content extracted successfully!';
+      document.getElementById('statusText').textContent = Config.MESSAGES.EXTRACTION_SUCCESS;
 
       const preview = document.getElementById('preview');
       preview.style.display = 'block';
 
       let previewText = `Title: ${currentData.title || 'N/A'}\nType: ${currentData.type}\nExercise Type: ${currentData.exerciseType}\nLanguage: ${currentData.language || 'Unknown'}`;
 
-      if (currentData.exerciseType === 'interview') {
+      if (currentData.exerciseType === Config.EXERCISE_TYPES.INTERVIEW) {
         const msgCount = currentData.interviewMessages?.length || 0;
         previewText += `\nInterview Messages: ${msgCount}`;
         if (currentData.expectedPoints?.length > 0) {
@@ -324,8 +305,8 @@ async function extractContent() {
       throw new Error('Failed to extract content');
     }
   } catch (error) {
-    console.error('Extraction error:', error);
-    document.getElementById('error').textContent = 'Error extracting content. Try refreshing the page.';
+    Logger.error('Extraction error:', error);
+    document.getElementById('error').textContent = Config.MESSAGES.EXTRACTION_ERROR;
     document.getElementById('error').style.display = 'block';
     return false;
   }
@@ -341,14 +322,17 @@ async function handleNotionExport() {
 
   // Get Notion settings
   const settings = await api.storage.sync.get({
-    notionEnabled: false,
+    notionEnabled: Config.DEFAULTS.NOTION_ENABLED,
     notionToken: '',
     databases: []
   });
 
-  if (!settings.notionEnabled || !settings.notionToken) {
-    document.getElementById('error').textContent = 'Notion not configured. Please configure in Options.';
+  // Validate settings
+  const validation = Validator.validateNotionSettings(settings);
+  if (!validation.valid) {
+    document.getElementById('error').textContent = Config.MESSAGES.NOTION_NOT_CONFIGURED;
     document.getElementById('error').style.display = 'block';
+    Logger.warn('Notion validation failed:', validation.errors);
     return;
   }
 
@@ -377,17 +361,17 @@ async function handleNotionExport() {
     );
 
     // Show success
-    document.getElementById('statusText').textContent = 'Sent to Notion successfully!';
+    document.getElementById('statusText').textContent = Config.MESSAGES.NOTION_SUCCESS;
     notionBtn.textContent = '✓ Sent to Notion!';
 
     setTimeout(() => {
       notionBtn.textContent = originalText;
       notionBtn.disabled = false;
-      document.getElementById('statusText').textContent = 'Ready to extract!';
+      document.getElementById('statusText').textContent = Config.MESSAGES.READY_TO_EXTRACT;
     }, 3000);
 
   } catch (error) {
-    console.error('Notion export error:', error);
+    Logger.error('Notion export error:', error);
     document.getElementById('error').textContent = `Failed to send to Notion: ${error.message}`;
     document.getElementById('error').style.display = 'block';
 
@@ -407,22 +391,26 @@ async function handleDownload() {
     if (!extracted) return;
   }
 
-  const settings = await api.storage.sync.get({ format: 'markdown' });
+  const settings = await api.storage.sync.get({ format: Config.DEFAULTS.FORMAT });
   const format = settings.format;
 
   const content = formatData(currentData, format);
-  const extensions = { json: 'json', markdown: 'md', text: 'txt' };
+  const extensions = {
+    [Config.FORMATS.JSON]: 'json',
+    [Config.FORMATS.MARKDOWN]: 'md',
+    [Config.FORMATS.TEXT]: 'txt'
+  };
   const ext = extensions[format] || 'txt';
 
   const timestamp = new Date().toISOString().split('T')[0];
-  const sanitizedTitle = (currentData.title || 'bootdev-content').replace(/[^a-z0-9]/gi, '-').toLowerCase();
+  const sanitizedTitle = Validator.sanitizeFilename(currentData.title || 'bootdev-content');
   const filename = `${sanitizedTitle}-${timestamp}.${ext}`;
 
   downloadFile(content, filename, format);
 
-  document.getElementById('statusText').textContent = 'Downloaded!';
+  document.getElementById('statusText').textContent = Config.MESSAGES.DOWNLOADED;
   setTimeout(() => {
-    document.getElementById('statusText').textContent = 'Ready to extract!';
+    document.getElementById('statusText').textContent = Config.MESSAGES.READY_TO_EXTRACT;
   }, 2000);
 }
 
@@ -433,17 +421,18 @@ async function handleCopy() {
     if (!extracted) return;
   }
 
-  const settings = await api.storage.sync.get({ format: 'markdown' });
+  const settings = await api.storage.sync.get({ format: Config.DEFAULTS.FORMAT });
   const format = settings.format;
   const content = formatData(currentData, format);
 
   try {
     await navigator.clipboard.writeText(content);
-    document.getElementById('statusText').textContent = 'Copied to clipboard!';
+    document.getElementById('statusText').textContent = Config.MESSAGES.COPIED_TO_CLIPBOARD;
     setTimeout(() => {
-      document.getElementById('statusText').textContent = 'Ready to extract!';
+      document.getElementById('statusText').textContent = Config.MESSAGES.READY_TO_EXTRACT;
     }, 2000);
   } catch (error) {
+    Logger.error('Copy to clipboard failed:', error);
     document.getElementById('error').textContent = 'Failed to copy to clipboard';
     document.getElementById('error').style.display = 'block';
   }

@@ -7,14 +7,14 @@ const api = window.browserAPI || browser || chrome;
 // Extract code from a single editor using advanced scrolling technique
 async function extractCodeFromEditor(editor, config = {}) {
   const {
-    settleAfterAppear = 220,
-    stepPx = 200,
-    waitMs = 160,
-    forcedOvershoot = 4000,
-    wiggleCount = 3,
-    wiggleDelay = 120,
-    editorAppearTimeout = 3000,
-    visibilityPollInterval = 80
+    settleAfterAppear = Config.EXTRACTION.SETTLE_AFTER_APPEAR,
+    stepPx = Config.EXTRACTION.STEP_PX,
+    waitMs = Config.EXTRACTION.WAIT_MS,
+    forcedOvershoot = Config.EXTRACTION.FORCED_OVERSHOOT,
+    wiggleCount = Config.EXTRACTION.WIGGLE_COUNT,
+    wiggleDelay = Config.EXTRACTION.WIGGLE_DELAY,
+    editorAppearTimeout = Config.EXTRACTION.EDITOR_APPEAR_TIMEOUT,
+    visibilityPollInterval = Config.EXTRACTION.VISIBILITY_POLL_INTERVAL
   } = config;
 
   const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -49,18 +49,18 @@ async function extractCodeFromEditor(editor, config = {}) {
 
     if (editorView && editorView.state && editorView.state.doc) {
       code = editorView.state.doc.toString();
-      console.log('✅ EditorView.state.doc:', code.length, 'characters');
+      Logger.debug('✅ EditorView.state.doc:', code.length, 'characters');
       return code;
     }
   } catch (e) {
-    console.log('Method 1 (EditorView.state.doc) failed:', e);
+    Logger.debug('Method 1 (EditorView.state.doc) failed:', e);
   }
 
   // Method 2: Advanced force-scroll extraction
-  console.log('Using advanced scroll extraction...');
+  Logger.debug('Using advanced scroll extraction...');
 
-  const root = editor.closest('.cm-editor, .CodeMirror') || editor;
-  const scrollEl = root.querySelector('.cm-scroller, .CodeMirror-scroll') || root;
+  const root = editor.closest(Config.SELECTORS.EDITOR_ROOT) || editor;
+  const scrollEl = root.querySelector(Config.SELECTORS.EDITOR_SCROLLER) || root;
 
   // Reset scroll position
   scrollEl.scrollTop = 0;
@@ -76,11 +76,11 @@ async function extractCodeFromEditor(editor, config = {}) {
   const reportedMax = Math.max(0, (scrollEl.scrollHeight || 0) - (scrollEl.clientHeight || 0));
   const maxScroll = Math.max(reportedMax, forcedOvershoot);
 
-  console.log(`    → Scrolling: clientHeight=${scrollEl.clientHeight}, maxScroll=${maxScroll}`);
+  Logger.debug(`    → Scrolling: clientHeight=${scrollEl.clientHeight}, maxScroll=${maxScroll}`);
 
   // Helper to capture rendered lines
   const captureLines = () => {
-    const lines = Array.from(root.querySelectorAll('.CodeMirror-line, .cm-line'));
+    const lines = Array.from(root.querySelectorAll(Config.SELECTORS.CODE_LINE));
     return lines.map(el => el.textContent ?? '');
   };
 
@@ -115,7 +115,7 @@ async function extractCodeFromEditor(editor, config = {}) {
   }
 
   // Sort lines by visual order
-  const nodes = Array.from(root.querySelectorAll('.CodeMirror-line, .cm-line'));
+  const nodes = Array.from(root.querySelectorAll(Config.SELECTORS.CODE_LINE));
   const ordered = nodes
     .map(n => ({ text: n.textContent ?? '', y: n.offsetTop || 0 }))
     .sort((a, b) => a.y - b.y)
@@ -126,27 +126,29 @@ async function extractCodeFromEditor(editor, config = {}) {
   // Reset scroll position
   scrollEl.scrollTop = 0;
 
-  console.log('✅ Scroll extraction:', code.split('\n').length, 'lines,', code.length, 'characters');
+  Logger.extraction('Scroll extraction', { lines: code.split('\n').length, chars: code.length });
   return code;
 }
 
 async function extractContent() {
   const url = window.location.href;
-  const isChallenge = url.includes('/challenges/');
-  const isLesson = url.includes('/lessons/');
 
-  if (!isChallenge && !isLesson) {
+  // Validate URL
+  if (!Validator.isValidBootdevPage(url)) {
     return null;
   }
 
+  const isChallenge = url.includes(Config.URL_PATTERNS.CHALLENGE);
+  const isLesson = url.includes(Config.URL_PATTERNS.LESSON);
+
   // Get settings - use Promise-based API
   const settings = await api.storage.sync.get({
-    extractSolution: true,
-    includeMetadata: true
+    extractSolution: Config.DEFAULTS.EXTRACT_SOLUTION,
+    includeMetadata: Config.DEFAULTS.INCLUDE_METADATA
   });
 
   const data = {
-    type: isChallenge ? 'challenge' : 'lesson',
+    type: isChallenge ? Config.CONTENT_TYPES.CHALLENGE : Config.CONTENT_TYPES.LESSON,
     url: settings.includeMetadata ? url : '',
     timestamp: settings.includeMetadata ? new Date().toISOString() : '',
     title: '',
@@ -159,11 +161,11 @@ async function extractContent() {
     allFiles: [],
     userCode: '',
     solution: '',
-    language: 'python',
+    language: Config.DEFAULTS.LANGUAGE,
     includeMetadata: settings.includeMetadata,
-    exerciseType: 'coding', // 'coding' or 'interview'
-    interviewMessages: [], // For interview exercises
-    expectedPoints: [] // For interview solution
+    exerciseType: Config.EXERCISE_TYPES.CODING,
+    interviewMessages: [],
+    expectedPoints: []
   };
 
   // Detect programming language
@@ -173,28 +175,34 @@ async function extractContent() {
   await extractViewerContent(data);
 
   // Detect exercise type
-  const hasCodeEditor = document.querySelector('.cm-content[role="textbox"]');
-  const hasInterview = document.querySelector('#interview-side');
+  const hasCodeEditor = document.querySelector(Config.SELECTORS.CODE_EDITOR);
+  const hasInterview = document.querySelector(Config.SELECTORS.INTERVIEW_SIDE);
 
   if (hasInterview && !hasCodeEditor) {
     // This is an interview exercise
-    data.exerciseType = 'interview';
-    console.log('📝 Detected interview exercise');
+    data.exerciseType = Config.EXERCISE_TYPES.INTERVIEW;
+    Logger.emoji(Config.LOG.DETECTED_INTERVIEW);
     await extractInterview(data);
   } else {
     // This is a coding exercise
-    data.exerciseType = 'coding';
-    console.log('💻 Detected coding exercise');
+    data.exerciseType = Config.EXERCISE_TYPES.CODING;
+    Logger.emoji(Config.LOG.DETECTED_CODING);
     await extractAllTabs(data);
   }
 
   // Extract solution if enabled and available
   if (settings.extractSolution) {
-    if (data.exerciseType === 'interview') {
+    if (data.exerciseType === Config.EXERCISE_TYPES.INTERVIEW) {
       await extractInterviewSolution(data);
     } else {
       await extractSolution(data);
     }
+  }
+
+  // Validate extracted data
+  const validation = Validator.validateContent(data);
+  if (!validation.valid) {
+    Logger.warn('Validation warnings:', validation.errors);
   }
 
   return data;
@@ -202,23 +210,19 @@ async function extractContent() {
 
 // Extract interview messages
 async function extractInterview(data) {
-  const interviewSide = document.querySelector('#interview-side');
+  const interviewSide = document.querySelector(Config.SELECTORS.INTERVIEW_SIDE);
   if (!interviewSide) return;
 
-  console.log('🗣️ Extracting interview messages...');
+  Logger.emoji(Config.LOG.EXTRACTING_INTERVIEW);
 
   // Find all message containers by traversing the DOM
-  // Look for grids with the specific pattern (more robust than hardcoded class)
   const messageContainers = [];
 
-  // Get all divs that have the grid structure we're looking for
-  const allDivs = interviewSide.querySelectorAll('div');
+  const allDivs = interviewSide.querySelectorAll(Config.SELECTORS.INTERVIEW_GRID);
   allDivs.forEach(div => {
-    // Check if it has an img (profile) and a .viewer (content)
-    const hasImg = div.querySelector('img') !== null;
-    const hasViewer = div.querySelector('.viewer') !== null;
+    const hasImg = div.querySelector(Config.SELECTORS.PROFILE_IMAGE) !== null;
+    const hasViewer = div.querySelector(Config.SELECTORS.VIEWER) !== null;
 
-    // Check if it's a grid with 2 columns (profile + content pattern)
     const classes = div.className || '';
     if (hasImg && hasViewer && classes.includes('grid')) {
       messageContainers.push(div);
@@ -227,101 +231,88 @@ async function extractInterview(data) {
 
   messageContainers.forEach((container, index) => {
     // Determine speaker based on position
-    // Boots always starts (index 0), then alternates: User (1), Boots (2), User (3), etc.
-    // Pattern: even index = Boots, odd index = User
     const isBoots = index % 2 === 0;
 
-    // Get the message content from .viewer div
-    const viewer = container.querySelector('.viewer');
+    const viewer = container.querySelector(Config.SELECTORS.VIEWER);
     if (!viewer) return;
 
-    // Clone the viewer to avoid modifying the original
     const clonedViewer = viewer.cloneNode(true);
-
-    // Remove copy buttons from clone
-    clonedViewer.querySelectorAll('button').forEach(btn => btn.remove());
+    clonedViewer.querySelectorAll(Config.SELECTORS.COPY_BUTTON).forEach(btn => btn.remove());
 
     // Extract code blocks in order
     const codeBlocks = HTMLParser.extractCodeBlocksInOrder(clonedViewer);
-
-    // Get text content (now with placeholders for code blocks)
     let messageText = HTMLParser.cleanText(clonedViewer.textContent);
-
-    // Replace placeholders with formatted code blocks
     messageText = HTMLParser.insertCodeBlocks(messageText, codeBlocks);
 
     if (messageText) {
       data.interviewMessages.push({
         index: index + 1,
-        speaker: isBoots ? 'Boots' : 'User',
+        speaker: isBoots ? Config.SPEAKERS.BOOTS : Config.SPEAKERS.USER,
         content: messageText,
         hasCode: codeBlocks.length > 0,
         codeBlocks: codeBlocks.map(cb => ({ code: cb.code, language: cb.lang }))
       });
 
-      console.log(`  ✅ Message ${index + 1}: ${isBoots ? 'Boots' : 'User'} (${messageText.length} chars, ${codeBlocks.length} code blocks)`);
+      Logger.extraction(`Message ${index + 1}`, {
+        speaker: isBoots ? Config.SPEAKERS.BOOTS : Config.SPEAKERS.USER,
+        chars: messageText.length,
+        codeBlocks: codeBlocks.length
+      });
     }
   });
 
-  console.log(`✅ Extracted ${data.interviewMessages.length} interview messages`);
+  Logger.extraction(`Extracted ${data.interviewMessages.length} interview messages`);
 }
 
 // Extract interview solution (expected points)
 async function extractInterviewSolution(data) {
   try {
-    console.log('\n💡 Looking for interview solution...');
+    Logger.emoji(Config.LOG.LOOKING_FOR_SOLUTION);
 
-    // Look for the solution section
-    const solutionContainer = document.querySelector('#interview-side');
+    const solutionContainer = document.querySelector(Config.SELECTORS.INTERVIEW_SIDE);
     if (!solutionContainer) {
-      data.solution = 'Solution not available (not opened yet)';
+      data.solution = Config.MESSAGES.SOLUTION_NOT_AVAILABLE;
       return;
     }
 
-    // Look for "Hide Solution" or "Show Solution" button to identify if solution is visible
-    const solutionButton = Array.from(solutionContainer.querySelectorAll('button'))
+    // Look for "Hide Solution" or "Show Solution" button
+    const solutionButton = Array.from(solutionContainer.querySelectorAll(Config.SELECTORS.SOLUTION_BUTTON))
       .find(btn => btn.textContent.includes('Solution'));
 
     if (!solutionButton || solutionButton.textContent.includes('Show')) {
-      data.solution = 'Solution not available (not opened yet)';
+      data.solution = Config.MESSAGES.SOLUTION_NOT_AVAILABLE;
       return;
     }
 
     // Find all message-like containers
     const allContainers = [];
-    const allDivs = solutionContainer.querySelectorAll('div');
+    const allDivs = solutionContainer.querySelectorAll(Config.SELECTORS.INTERVIEW_GRID);
     allDivs.forEach(div => {
-      const hasImg = div.querySelector('img') !== null;
-      const hasViewer = div.querySelector('.viewer') !== null;
+      const hasImg = div.querySelector(Config.SELECTORS.PROFILE_IMAGE) !== null;
+      const hasViewer = div.querySelector(Config.SELECTORS.VIEWER) !== null;
       const classes = div.className || '';
       if (hasImg && hasViewer && classes.includes('grid')) {
         allContainers.push(div);
       }
     });
 
-    // The solution is typically in the last viewer container after "Lesson Complete!" message
-    // Look for it by finding content after the interview messages
     let solutionViewer = null;
     let foundComplete = false;
 
-    // Walk through the interview side to find solution content
     for (const container of allContainers) {
-      const viewer = container.querySelector('.viewer');
+      const viewer = container.querySelector(Config.SELECTORS.VIEWER);
       if (viewer) {
         const text = viewer.textContent.trim();
 
-        // Skip interview messages (they're already extracted)
         if (data.interviewMessages.some(msg => text.includes(msg.content.substring(0, 50)))) {
           continue;
         }
 
-        // Look for "Lesson Complete" or success messages
         if (text.toLowerCase().includes('complete') || text.toLowerCase().includes('success')) {
           foundComplete = true;
           continue;
         }
 
-        // After finding complete message, the next viewer is likely the solution
         if (foundComplete && !solutionViewer) {
           solutionViewer = viewer;
           break;
@@ -329,9 +320,8 @@ async function extractInterviewSolution(data) {
       }
     }
 
-    // Also check for solution in a separate container (like a bordered div)
     if (!solutionViewer) {
-      const borderedDivs = solutionContainer.querySelectorAll('div[class*="border"]');
+      const borderedDivs = solutionContainer.querySelectorAll(Config.SELECTORS.BORDERED_DIV);
       for (const div of borderedDivs) {
         const text = div.textContent.trim();
         if (text.toLowerCase().includes('expecting') || text.toLowerCase().includes('point')) {
@@ -342,18 +332,17 @@ async function extractInterviewSolution(data) {
     }
 
     if (solutionViewer) {
-      // Use HTMLParser to convert solution to markdown
       data.solution = HTMLParser.parseToMarkdown(solutionViewer, {
         defaultLanguage: data.language
       });
 
-      console.log(`  ✅ Extracted solution (${data.solution.length} chars)`);
+      Logger.extraction('Solution', { chars: data.solution.length });
     } else {
-      data.solution = 'Solution not available (not opened yet)';
+      data.solution = Config.MESSAGES.SOLUTION_NOT_AVAILABLE;
     }
   } catch (e) {
-    console.log('Could not extract interview solution:', e);
-    data.solution = 'Solution extraction failed';
+    Logger.error('Could not extract interview solution:', e);
+    data.solution = Config.MESSAGES.SOLUTION_EXTRACTION_FAILED;
   }
 }
 

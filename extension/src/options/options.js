@@ -4,8 +4,8 @@ const api = window.browserAPI || (typeof browser !== 'undefined' ? browser : chr
 
 // Default database types
 const DEFAULT_DATABASE_TYPES = [
-  { type: 'challenge', id: '' },
-  { type: 'lesson', id: '' },
+  { type: Config.CONTENT_TYPES.CHALLENGE, id: '' },
+  { type: Config.CONTENT_TYPES.LESSON, id: '' },
   { type: 'other', id: '' }
 ];
 
@@ -15,10 +15,10 @@ let databases = [];
 // Load saved settings
 async function loadSettings() {
   const settings = await api.storage.sync.get({
-    format: 'markdown',
-    extractSolution: true,
-    includeMetadata: true,
-    notionEnabled: false,
+    format: Config.DEFAULTS.FORMAT,
+    extractSolution: Config.DEFAULTS.EXTRACT_SOLUTION,
+    includeMetadata: Config.DEFAULTS.INCLUDE_METADATA,
+    notionEnabled: Config.DEFAULTS.NOTION_ENABLED,
     notionToken: '',
     databases: [...DEFAULT_DATABASE_TYPES]
   });
@@ -231,51 +231,22 @@ function cancelRestoreDefaults() {
 
 // Save settings
 async function saveSettings() {
-  // Validate databases - check for duplicates
-  const validDatabases = [];
-  const seenTypes = new Set();
-  const seenIds = new Set();
-  const errors = [];
+  // Validate databases
+  const validation = Validator.validateDatabases(databases);
 
-  databases.forEach((db, index) => {
-    const normalizedType = db.type.toLowerCase().trim();
-    const trimmedId = db.id.trim();
-
-    // Skip completely empty entries (no type and no id)
-    if (!db.type && !db.id) {
-      return;
-    }
-
-    // But keep entries that have a type, even if ID is empty
-    // This preserves default placeholders
-
-    // Check for duplicate types
-    if (normalizedType && seenTypes.has(normalizedType)) {
-      errors.push(`Duplicate type: "${db.type}"`);
-      return;
-    }
-
-    // Check for duplicate IDs (only if ID is not empty)
-    if (trimmedId && seenIds.has(trimmedId)) {
-      errors.push(`Duplicate database ID for type: "${db.type}"`);
-      return;
-    }
-
-    if (normalizedType) {
-      seenTypes.add(normalizedType);
-    }
-    if (trimmedId) {
-      seenIds.add(trimmedId);
-    }
-
-    validDatabases.push({ type: db.type.trim(), id: trimmedId });
-  });
-
-  // Show errors if any
-  if (errors.length > 0) {
-    showError(errors.join(', '));
+  // Show validation results
+  if (validation.errors.length > 0) {
+    showError(validation.errors.join(', '));
+    Logger.error('Database validation errors:', validation.errors);
     return;
   }
+
+  if (validation.warnings.length > 0) {
+    Logger.warn('Database validation warnings:', validation.warnings);
+  }
+
+  // Filter out empty databases
+  const validDatabases = databases.filter(db => db.type || db.id);
 
   const settings = {
     format: document.getElementById('format').value,
@@ -307,7 +278,7 @@ async function saveSettings() {
       status.style.display = 'none';
     }, 3000);
   } catch (error) {
-    console.error('Error saving settings:', error);
+    Logger.error('Error saving settings:', error);
     showError('Error saving settings');
   }
 }
@@ -387,6 +358,7 @@ async function testConnection() {
       status.className = 'status error';
     }
   } catch (error) {
+    Logger.error('Connection test error:', error);
     status.textContent = `✗ Connection test failed: ${error.message}`;
     status.className = 'status error';
   }

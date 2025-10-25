@@ -26,9 +26,12 @@
         "https://www.boot.dev/lessons/*"
       ],
       "js": [
-        "browser-polyfill.js",
-        "html-parser.js",
-        "content.js"
+        "lib/browser-polyfill.js",
+        "src/utils/config.js",
+        "src/utils/logger.js",
+        "src/utils/validator.js",
+        "src/utils/html-parser.js",
+        "src/content/content.js"
       ],
       "run_at": "document_idle"
     }
