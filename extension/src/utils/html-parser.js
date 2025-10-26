@@ -2,6 +2,55 @@
 // Handles conversion of HTML content to markdown format
 
 const HTMLParser = {
+  // Cache for callout background images
+  calloutImageCache: {},
+
+  /**
+   * Extract callout background images from stylesheets
+   * This scans all CSS rules to find background images for callout::before elements
+   */
+  extractCalloutImages() {
+    if (Object.keys(this.calloutImageCache).length > 0) {
+      return this.calloutImageCache;
+    }
+
+    try {
+      // Scan all stylesheets
+      for (const styleSheet of document.styleSheets) {
+        try {
+          // Some stylesheets may be cross-origin and throw errors
+          const rules = styleSheet.cssRules || styleSheet.rules;
+          if (!rules) continue;
+
+          for (const rule of rules) {
+            if (rule.selectorText) {
+              // Look for .viewer .callout-[type]:before or ::before patterns
+              const match = rule.selectorText.match(/\.callout-(\w+)::?before/i);
+              if (match) {
+                const calloutType = match[1];
+                const bgImage = rule.style.backgroundImage;
+
+                if (bgImage && bgImage !== 'none') {
+                  const urlMatch = bgImage.match(/url\(['"]?(.*?)['"]?\)/);
+                  if (urlMatch) {
+                    this.calloutImageCache[calloutType] = urlMatch[1];
+                  }
+                }
+              }
+            }
+          }
+        } catch (e) {
+          // Skip stylesheets we can't access (cross-origin)
+          continue;
+        }
+      }
+    } catch (e) {
+      Logger.debug('Could not scan stylesheets:', e);
+    }
+
+    return this.calloutImageCache;
+  },
+
   /**
    * Process a list item recursively, handling nested lists
    * @param {HTMLElement} li - The list item element
@@ -78,13 +127,62 @@ const HTMLParser = {
   parseToMarkdown(container, options = {}) {
     const { defaultLanguage = 'python' } = options;
 
+    // Extract callout images from stylesheets first
+    const calloutImages = this.extractCalloutImages();
+
     // Clone to avoid modifying original
     const cloned = container.cloneNode(true);
 
     // Remove buttons and title
     cloned.querySelectorAll('button').forEach(btn => btn.remove());
+    cloned.querySelectorAll('svg').forEach(svg => svg.remove());
+    cloned.querySelectorAll('audio').forEach(audio => audio.remove());
     const h1 = cloned.querySelector('h1');
     if (h1) h1.remove();
+
+    // Extract and replace video elements with embedded HTML
+    cloned.querySelectorAll('video').forEach(video => {
+      const src = video.getAttribute('src');
+      const poster = video.getAttribute('poster');
+      if (src) {
+        const videoEmbed = document.createElement('div');
+        // Create HTML video tag that will be preserved in markdown
+        let videoHTML = `<video src="${src}" controls`;
+        if (poster) {
+          videoHTML += ` poster="${poster}"`;
+        }
+        videoHTML += ' width="100%" style="max-width: 800px;">Your browser does not support the video tag.</video>';
+        videoEmbed.innerHTML = videoHTML;
+
+        // Also add a fallback link
+        const fallbackLink = document.createElement('p');
+        fallbackLink.innerHTML = `<em>📹 <a href="${src}">Direct video link</a></em>`;
+
+        video.parentNode.replaceChild(videoEmbed, video);
+        videoEmbed.parentNode.insertBefore(fallbackLink, videoEmbed.nextSibling);
+      } else {
+        video.remove();
+      }
+    });
+
+    // Flatten details/summary elements
+    cloned.querySelectorAll('details').forEach(details => {
+      const summary = details.querySelector('summary');
+      if (summary) {
+        // Extract the heading from summary if it exists
+        const heading = summary.querySelector('h2, h3, h4');
+        if (heading) {
+          // Insert heading before details element
+          details.parentNode.insertBefore(heading.cloneNode(true), details);
+        }
+        summary.remove();
+      }
+      // Move all content from details to parent
+      while (details.firstChild) {
+        details.parentNode.insertBefore(details.firstChild, details);
+      }
+      details.remove();
+    });
 
     const lines = [];
     const children = Array.from(cloned.children);
@@ -95,6 +193,96 @@ const HTMLParser = {
 
       // Paragraphs
       if (tagName === 'p') {
+        // Check for images in the paragraph
+        const img = element.querySelector('img');
+        if (img) {
+          const src = img.getAttribute('src');
+          const alt = img.getAttribute('alt') || 'Image';
+          if (src) {
+            lines.push(`![${alt}](${src})`);
+            lines.push('');
+          }
+        } else if (text) {
+          lines.push(text);
+          lines.push('');
+        }
+        continue;
+      }
+
+      // Divs (for callouts and other special content)
+      if (tagName === 'div') {
+        const className = element.className || '';
+
+        // Handle callout boxes
+        if (className.includes('callout')) {
+          // Extract callout type (e.g., "lane", "info", "warning")
+          const calloutMatch = className.match(/callout-(\w+)/);
+          const calloutType = calloutMatch ? calloutMatch[1] : null;
+
+          // Get background image from cache
+          const backgroundImage = calloutType ? calloutImages[calloutType] : null;
+
+          const calloutText = element.textContent.trim();
+          if (calloutText) {
+            // Create styled callout box with image and text side-by-side
+            if (backgroundImage) {
+              // Use HTML table or div for side-by-side layout that works in markdown
+              lines.push('<div style="display: grid; grid-template-columns: auto 1fr; gap: 0.5rem; align-items: center; background: #1a1a1a; border-left: 5px solid #6b7280; border-radius: 4px; padding: 1rem; margin-bottom: 1rem;">');
+              lines.push(`  <img src="${backgroundImage}" alt="Callout: ${calloutType}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px;" />`);
+              lines.push(`  <div>${calloutText}</div>`);
+              lines.push('</div>');
+              lines.push('');
+            } else {
+              // Fallback to blockquote if no image
+              lines.push('> ' + calloutText.replace(/\n/g, '\n> '));
+              lines.push('');
+            }
+          }
+          continue;
+        }
+
+        // Check for embedded video HTML
+        const videoTag = element.querySelector('video');
+        if (videoTag) {
+          const src = videoTag.getAttribute('src');
+          const poster = videoTag.getAttribute('poster');
+          if (src) {
+            // Output raw HTML for video embedding
+            let videoHTML = `<video src="${src}" controls`;
+            if (poster) {
+              videoHTML += ` poster="${poster}"`;
+            }
+            videoHTML += ' width="100%" style="max-width: 800px;">Your browser does not support the video tag.</video>';
+            lines.push(videoHTML);
+            lines.push('');
+          }
+          continue;
+        }
+
+        // Check for code blocks within divs
+        const codeBlock = element.querySelector('code');
+        if (codeBlock) {
+          const code = codeBlock.textContent.trim();
+          if (code) {
+            // Detect language
+            let lang = defaultLanguage;
+            const className = codeBlock.className;
+            if (className) {
+              const langMatch = className.match(/language-(\w+)/);
+              if (langMatch) {
+                lang = langMatch[1];
+              }
+            }
+
+            lines.push(`\`\`\`${lang}`);
+            lines.push(code);
+            lines.push('```');
+            lines.push('');
+          }
+          continue;
+        }
+
+        // Otherwise just get the text content
         if (text) {
           lines.push(text);
           lines.push('');
@@ -130,8 +318,8 @@ const HTMLParser = {
         continue;
       }
 
-      // Code blocks
-      if (tagName === 'div' || tagName === 'pre') {
+      // Code blocks (pre elements)
+      if (tagName === 'pre') {
         const codeBlock = element.querySelector('code');
         if (codeBlock) {
           const code = codeBlock.textContent.trim();
