@@ -86,20 +86,10 @@ const NotionAPI = {
     const blocks = [];
     const isInterview = content.exerciseType === 'interview';
 
-    // Add description
+    // Parse description markdown to blocks
     if (content.description) {
-      blocks.push({
-        object: 'block',
-        type: 'paragraph',
-        paragraph: {
-          rich_text: [
-            {
-              type: 'text',
-              text: { content: content.description }
-            }
-          ]
-        }
-      });
+      const descriptionBlocks = this.parseMarkdownToBlocks(content.description, content.language);
+      blocks.push(...descriptionBlocks);
       blocks.push({ object: 'block', type: 'divider', divider: {} });
     }
 
@@ -363,6 +353,232 @@ const NotionAPI = {
         ]
       }
     });
+
+    return blocks;
+  },
+
+  // Parse markdown description to Notion blocks
+  parseMarkdownToBlocks(markdown, defaultLanguage = 'python') {
+    const blocks = [];
+    const lines = markdown.split('\n');
+    let i = 0;
+
+    while (i < lines.length) {
+      const line = lines[i];
+
+      // Skip empty lines
+      if (!line.trim()) {
+        i++;
+        continue;
+      }
+
+      // Headings
+      if (line.startsWith('## ')) {
+        blocks.push({
+          object: 'block',
+          type: 'heading_2',
+          heading_2: {
+            rich_text: [{ type: 'text', text: { content: line.substring(3).trim() } }]
+          }
+        });
+        i++;
+        continue;
+      }
+
+      if (line.startsWith('### ')) {
+        blocks.push({
+          object: 'block',
+          type: 'heading_3',
+          heading_3: {
+            rich_text: [{ type: 'text', text: { content: line.substring(4).trim() } }]
+          }
+        });
+        i++;
+        continue;
+      }
+
+      // Images
+      if (line.match(/^!\[.*?\]\(.*?\)/)) {
+        const match = line.match(/^!\[(.*?)\]\((.*?)\)/);
+        if (match) {
+          const url = match[2];
+          blocks.push({
+            object: 'block',
+            type: 'image',
+            image: {
+              type: 'external',
+              external: { url: url }
+            }
+          });
+        }
+        i++;
+        continue;
+      }
+
+      // Videos (HTML video tags)
+      if (line.includes('<video')) {
+        const srcMatch = line.match(/src="(.*?)"/);
+        if (srcMatch) {
+          const videoUrl = srcMatch[1];
+          blocks.push({
+            object: 'block',
+            type: 'video',
+            video: {
+              type: 'external',
+              external: { url: videoUrl }
+            }
+          });
+        }
+        i++;
+        continue;
+      }
+
+      // Callout boxes (HTML divs with styles)
+      if (line.includes('<div style="display: grid')) {
+        // Extract image and text from callout
+        let calloutText = '';
+        let calloutImage = '';
+
+        // Look ahead for img and div content
+        while (i < lines.length && !lines[i].includes('</div>')) {
+          const currentLine = lines[i];
+
+          // Extract image URL
+          const imgMatch = currentLine.match(/src="(.*?)"/);
+          if (imgMatch) {
+            calloutImage = imgMatch[1];
+          }
+
+          // Extract text content
+          const textMatch = currentLine.match(/<div>(.*?)<\/div>/);
+          if (textMatch) {
+            calloutText = textMatch[1];
+          }
+
+          i++;
+        }
+        i++; // Skip closing </div>
+
+        // Create callout block
+        if (calloutText) {
+          const calloutBlock = {
+            object: 'block',
+            type: 'callout',
+            callout: {
+              rich_text: [{ type: 'text', text: { content: calloutText } }],
+              color: 'gray_background'
+            }
+          };
+
+          // Add icon/emoji if we have an image
+          if (calloutImage) {
+            calloutBlock.callout.icon = {
+              type: 'external',
+              external: { url: calloutImage }
+            };
+          }
+
+          blocks.push(calloutBlock);
+        }
+        continue;
+      }
+
+      // Code blocks
+      if (line.startsWith('```')) {
+        const language = line.substring(3).trim() || defaultLanguage;
+        const codeLines = [];
+        i++;
+
+        while (i < lines.length && !lines[i].startsWith('```')) {
+          codeLines.push(lines[i]);
+          i++;
+        }
+        i++; // Skip closing ```
+
+        if (codeLines.length > 0) {
+          blocks.push({
+            object: 'block',
+            type: 'code',
+            code: {
+              rich_text: [{ type: 'text', text: { content: codeLines.join('\n') } }],
+              language: this.mapLanguage(language)
+            }
+          });
+        }
+        continue;
+      }
+
+      // Blockquotes
+      if (line.startsWith('> ')) {
+        const quoteLines = [];
+        while (i < lines.length && lines[i].startsWith('> ')) {
+          quoteLines.push(lines[i].substring(2));
+          i++;
+        }
+
+        blocks.push({
+          object: 'block',
+          type: 'quote',
+          quote: {
+            rich_text: [{ type: 'text', text: { content: quoteLines.join('\n') } }]
+          }
+        });
+        continue;
+      }
+
+      // Bulleted lists
+      if (line.match(/^[\-\*]\s/)) {
+        const items = [];
+        while (i < lines.length && lines[i].match(/^[\-\*]\s/)) {
+          items.push(lines[i].substring(2).trim());
+          i++;
+        }
+
+        items.forEach(item => {
+          blocks.push({
+            object: 'block',
+            type: 'bulleted_list_item',
+            bulleted_list_item: {
+              rich_text: [{ type: 'text', text: { content: item } }]
+            }
+          });
+        });
+        continue;
+      }
+
+      // Numbered lists
+      if (line.match(/^\d+\.\s/)) {
+        const items = [];
+        while (i < lines.length && lines[i].match(/^\d+\.\s/)) {
+          items.push(lines[i].replace(/^\d+\.\s/, '').trim());
+          i++;
+        }
+
+        items.forEach(item => {
+          blocks.push({
+            object: 'block',
+            type: 'numbered_list_item',
+            numbered_list_item: {
+              rich_text: [{ type: 'text', text: { content: item } }]
+            }
+          });
+        });
+        continue;
+      }
+
+      // Regular paragraphs
+      const chunks = this.splitIntoChunks(line, 1900);
+      chunks.forEach(chunk => {
+        blocks.push({
+          object: 'block',
+          type: 'paragraph',
+          paragraph: {
+            rich_text: [{ type: 'text', text: { content: chunk } }]
+          }
+        });
+      });
+      i++;
+    }
 
     return blocks;
   },
