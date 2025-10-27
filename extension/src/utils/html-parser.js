@@ -140,6 +140,14 @@ const HTMLParser = {
     const h1 = cloned.querySelector('h1');
     if (h1) h1.remove();
 
+    // Remove "Click to hide video" headings
+    cloned.querySelectorAll('h2, h3').forEach(heading => {
+      const text = heading.textContent.trim().toLowerCase();
+      if (text.includes('click to hide video') || text.includes('click to show video')) {
+        heading.remove();
+      }
+    });
+
     // Extract and replace video elements with embedded HTML
     cloned.querySelectorAll('video').forEach(video => {
       const src = video.getAttribute('src');
@@ -154,9 +162,9 @@ const HTMLParser = {
         videoHTML += '>Your browser does not support the video tag.</video>';
         videoEmbed.innerHTML = videoHTML;
 
-        // Also add a fallback link
+        // Also add a clickable link that works
         const fallbackLink = document.createElement('p');
-        fallbackLink.innerHTML = `<em>📹 <a href="${src}">Direct video link</a></em>`;
+        fallbackLink.innerHTML = `<em>📹 <a href="${src}" target="_blank" rel="noopener noreferrer">Open video in new tab</a></em>`;
 
         video.parentNode.replaceChild(videoEmbed, video);
         videoEmbed.parentNode.insertBefore(fallbackLink, videoEmbed.nextSibling);

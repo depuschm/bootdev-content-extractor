@@ -380,9 +380,10 @@ const NotionAPI = {
           // Add video embed block
           blocks.push({
             object: 'block',
-            type: 'embed',
-            embed: {
-              url: videoUrl
+            type: 'video',
+            video: {
+              type: 'external',
+              external: { url: videoUrl }
             }
           });
         }
