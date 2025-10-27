@@ -56,23 +56,60 @@ const Config = {
     SHELL: ['shell', '/learn-shell'],
   },
 
-  // File extensions
-  FILE_EXTENSIONS: {
-    python: 'py',
-    javascript: 'js',
-    typescript: 'ts',
-    go: 'go',
-    sql: 'sql',
-    c: 'c',
-    cpp: 'cpp',
-    rust: 'rs',
-    java: 'java',
-    shell: 'sh',
-    json: 'json',
-    yaml: 'yaml',
-    markdown: 'md',
-    html: 'html',
-    css: 'css',
+  // Language to file extension mapping (bidirectional)
+  LANGUAGE_EXTENSIONS: {
+    // Programming languages
+    'python': 'py',
+    'javascript': 'js',
+    'typescript': 'ts',
+    'go': 'go',
+    'sql': 'sql',
+    'c': 'c',
+    'cpp': 'cpp',
+    'rust': 'rs',
+    'java': 'java',
+    'shell': 'sh',
+    'bash': 'sh',
+    // Markup/Data languages
+    'json': 'json',
+    'yaml': 'yaml',
+    'yml': 'yaml',
+    'markdown': 'md',
+    'html': 'html',
+    'css': 'css',
+    'xml': 'xml',
+  },
+
+  // File extension to language mapping (reverse lookup)
+  EXTENSION_TO_LANGUAGE: {
+    'py': 'python',
+    'js': 'javascript',
+    'jsx': 'javascript',
+    'ts': 'typescript',
+    'tsx': 'typescript',
+    'go': 'go',
+    'sql': 'sql',
+    'c': 'c',
+    'h': 'c',
+    'cpp': 'cpp',
+    'cc': 'cpp',
+    'cxx': 'cpp',
+    'hpp': 'cpp',
+    'hxx': 'cpp',
+    'rs': 'rust',
+    'java': 'java',
+    'sh': 'shell',
+    'bash': 'bash',
+    'zsh': 'shell',
+    'json': 'json',
+    'yaml': 'yaml',
+    'yml': 'yaml',
+    'md': 'markdown',
+    'markdown': 'markdown',
+    'html': 'html',
+    'htm': 'html',
+    'css': 'css',
+    'xml': 'xml',
   },
 
   // Extraction settings
@@ -146,12 +183,33 @@ const Config = {
   // Status messages for logging
   LOG: {
     DETECTED_CODING: '💻 Detected coding exercise',
-    DETECTED_INTERVIEW: '📝 Detected interview exercise',
+    DETECTED_INTERVIEW: '🎙️ Detected interview exercise',
     EXTRACTING_INTERVIEW: '🗣️ Extracting interview messages...',
     LOOKING_FOR_SOLUTION: '\n💡 Looking for interview solution...',
-    PROCESSING_TAB: '\n🔓 Processing tab #',
+    PROCESSING_TAB: '\n📂 Processing tab #',
     RETURNING_TO_TAB: '\n🔙 Returning to initial tab...',
     SOLUTION_VIEW_DETECTED: '\n💡 Solution view detected – capturing right-side editor...',
+  },
+
+  // Helper functions
+  /**
+   * Get file extension for a language
+   * @param {string} language - Language name
+   * @returns {string} File extension
+   */
+  getFileExtension(language) {
+    return this.LANGUAGE_EXTENSIONS[language?.toLowerCase()] || 'txt';
+  },
+
+  /**
+   * Detect language from filename extension
+   * @param {string} filename - Filename with extension
+   * @returns {string|null} Language name or null if not found
+   */
+  detectLanguageFromFilename(filename) {
+    if (!filename) return null;
+    const ext = filename.split('.').pop()?.toLowerCase();
+    return this.EXTENSION_TO_LANGUAGE[ext] || null;
   },
 };
 

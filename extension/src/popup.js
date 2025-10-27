@@ -78,9 +78,9 @@ function getDatabaseIdForType(type, databases) {
   return fallback ? fallback.id : null;
 }
 
-// Get file extension for language
+// Get file extension for language - NOW USES CONFIG
 function getFileExtension(language) {
-  return Config.FILE_EXTENSIONS[language?.toLowerCase()] || 'txt';
+  return Config.getFileExtension(language);
 }
 
 // Format data for download

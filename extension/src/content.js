@@ -379,7 +379,7 @@ async function extractAllTabs(data) {
   // Process each tab
   for (let i = 0; i < tabButtons.length; i++) {
     const btn = tabButtons[i];
-    console.log(`\n🔓 Processing tab #${i + 1}...`);
+    console.log(`\n📂 Processing tab #${i + 1}...`);
 
     // Click tab to activate it
     btn.click();
@@ -554,37 +554,9 @@ function detectLanguage(url) {
   return 'python';
 }
 
-// Detect language from filename
+// Detect language from filename - NOW USES CONFIG
 function detectLanguageFromFilename(filename) {
-  const ext = filename.split('.').pop().toLowerCase();
-
-  const extensionMap = {
-    'py': 'python',
-    'js': 'javascript',
-    'ts': 'typescript',
-    'go': 'go',
-    'sql': 'sql',
-    'c': 'c',
-    'cpp': 'cpp',
-    'cc': 'cpp',
-    'h': 'c',
-    'hpp': 'cpp',
-    'rs': 'rust',
-    'java': 'java',
-    'sh': 'shell',
-    'bash': 'shell',
-    'zsh': 'shell',
-    'jsx': 'javascript',
-    'tsx': 'typescript',
-    'json': 'json',
-    'yaml': 'yaml',
-    'yml': 'yaml',
-    'md': 'markdown',
-    'html': 'html',
-    'css': 'css'
-  };
-
-  return extensionMap[ext] || null;
+  return Config.detectLanguageFromFilename(filename);
 }
 
 // Listen for messages from popup - cross-browser compatible

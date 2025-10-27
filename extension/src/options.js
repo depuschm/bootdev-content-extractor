@@ -146,19 +146,10 @@ function renderDatabases() {
       const index = parseInt(e.target.dataset.index);
       const newId = e.target.value.trim();
 
-      // Check for duplicate IDs
-      const duplicate = databases.find((db, i) =>
-        i !== index && db.id && db.id === newId
-      );
-
-      if (duplicate && newId) {
-        e.target.style.borderColor = 'var(--red-500)';
-        e.target.title = 'This database ID is already used!';
-      } else {
-        e.target.style.borderColor = '';
-        e.target.title = '';
-        databases[index].id = newId;
-      }
+      // No validation for duplicate IDs - allow same database for multiple types
+      e.target.style.borderColor = '';
+      e.target.title = '';
+      databases[index].id = newId;
     });
   });
 
@@ -311,12 +302,30 @@ async function testConnection() {
 
   try {
     const results = [];
+    const testedDatabases = new Set();
 
-    // Test each database
+    // Test each unique database (skip duplicates)
     for (const db of validDatabases) {
+      if (testedDatabases.has(db.id)) {
+        // Already tested this database ID, reuse the result
+        const existingResult = results.find(r => r.id === db.id);
+        if (existingResult) {
+          results.push({
+            type: db.type,
+            id: db.id,
+            success: existingResult.success,
+            title: existingResult.title,
+            error: existingResult.error
+          });
+        }
+        continue;
+      }
+
+      testedDatabases.add(db.id);
       const result = await NotionAPI.testConnection(token, db.id);
       results.push({
         type: db.type,
+        id: db.id,
         success: result.success,
         title: result.database?.title[0]?.plain_text || 'Unknown',
         error: result.error
@@ -328,10 +337,23 @@ async function testConnection() {
     const failed = results.filter(r => !r.success);
 
     if (failed.length === 0) {
+      // Group by database ID to show which types share databases
+      const byDatabase = {};
+      successful.forEach(s => {
+        if (!byDatabase[s.id]) {
+          byDatabase[s.id] = { title: s.title, types: [] };
+        }
+        byDatabase[s.id].types.push(s.type);
+      });
+
+      const dbSummary = Object.entries(byDatabase)
+        .map(([id, info]) => `${info.title} (${info.types.join(', ')})`)
+        .join('<br>');
+
       status.innerHTML = `
         <strong>✓ All ${successful.length} database(s) connected successfully!</strong><br>
         <small style="opacity: 0.8; margin-top: 8px; display: block;">
-          ${successful.map(s => `${s.type}: ${s.title}`).join(', ')}
+          ${dbSummary}
         </small>
       `;
       status.className = 'status success';

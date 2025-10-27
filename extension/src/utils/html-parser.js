@@ -151,7 +151,7 @@ const HTMLParser = {
         if (poster) {
           videoHTML += ` poster="${poster}"`;
         }
-        videoHTML += ' width="100%" style="max-width: 800px;">Your browser does not support the video tag.</video>';
+        videoHTML += '>Your browser does not support the video tag.</video>';
         videoEmbed.innerHTML = videoHTML;
 
         // Also add a fallback link
@@ -252,7 +252,7 @@ const HTMLParser = {
             if (poster) {
               videoHTML += ` poster="${poster}"`;
             }
-            videoHTML += ' width="100%" style="max-width: 800px;">Your browser does not support the video tag.</video>';
+            videoHTML += '>Your browser does not support the video tag.</video>';
             lines.push(videoHTML);
             lines.push('');
           }

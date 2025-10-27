@@ -91,7 +91,6 @@ const Validator = {
     const errors = [];
     const warnings = [];
     const seenTypes = new Set();
-    const seenIds = new Set();
 
     if (!Array.isArray(databases)) {
       errors.push('Databases must be an array');
@@ -107,20 +106,15 @@ const Validator = {
         warnings.push(`Database ${index + 1} (${db.type || 'unnamed'}): Missing ID`);
       }
 
-      // Check for duplicates
+      // Check for duplicate types (still not allowed)
       const normalizedType = db.type?.toLowerCase().trim();
       if (normalizedType && seenTypes.has(normalizedType)) {
         errors.push(`Duplicate database type: "${db.type}"`);
       }
       seenTypes.add(normalizedType);
 
-      const trimmedId = db.id?.trim();
-      if (trimmedId && seenIds.has(trimmedId)) {
-        errors.push(`Duplicate database ID for type: "${db.type}"`);
-      }
-      seenIds.add(trimmedId);
-
       // Validate database ID format (should be 32 chars, alphanumeric)
+      const trimmedId = db.id?.trim();
       if (trimmedId && (trimmedId.length !== 32 || !/^[a-f0-9]+$/i.test(trimmedId))) {
         warnings.push(`Database ${index + 1} (${db.type}): ID format may be invalid`);
       }

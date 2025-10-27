@@ -372,6 +372,96 @@ const NotionAPI = {
         continue;
       }
 
+      // Video placeholders (HTML video tags)
+      if (line.includes('<video')) {
+        const srcMatch = line.match(/src="(.*?)"/);
+        if (srcMatch) {
+          const videoUrl = srcMatch[1];
+          // Add video embed block
+          blocks.push({
+            object: 'block',
+            type: 'embed',
+            embed: {
+              url: videoUrl
+            }
+          });
+        }
+        // Skip video-related lines until we're past the video tag
+        while (i < lines.length && !lines[i].includes('</video>')) {
+          i++;
+        }
+        i++; // Skip closing </video>
+        continue;
+      }
+
+      // Callout boxes (HTML divs with grid display)
+      if (line.includes('<div style="display: grid')) {
+        // Extract image and text from the callout HTML structure
+        let calloutText = '';
+        let calloutImage = '';
+        let htmlLines = [line];
+
+        // Collect all lines until we find the outer closing </div>
+        let divDepth = 1; // We started with opening <div>
+        while (i < lines.length - 1 && divDepth > 0) {
+          i++;
+          htmlLines.push(lines[i]);
+
+          // Count opening and closing divs
+          const openDivs = (lines[i].match(/<div[^>]*>/g) || []).length;
+          const closeDivs = (lines[i].match(/<\/div>/g) || []).length;
+          divDepth += openDivs - closeDivs;
+
+          if (divDepth === 0) break;
+        }
+
+        // Parse the collected HTML
+        const htmlString = htmlLines.join('\n');
+
+        // Extract image URL
+        const imgMatch = htmlString.match(/<img src="(.*?)"/);
+        if (imgMatch) {
+          calloutImage = imgMatch[1];
+        }
+
+        // Extract text content - get everything between the inner <div> tags
+        // The structure is: outer div -> img -> inner div with text
+        const innerDivMatch = htmlString.match(/<div>([^]*?)<\/div>\s*<\/div>/);
+        if (innerDivMatch) {
+          calloutText = innerDivMatch[1].trim();
+        }
+
+        // Create callout block
+        if (calloutText) {
+          const calloutBlock = {
+            object: 'block',
+            type: 'callout',
+            callout: {
+              rich_text: [{ type: 'text', text: { content: calloutText } }],
+              color: 'gray_background'
+            }
+          };
+
+          // Add icon if we have an image
+          if (calloutImage) {
+            calloutBlock.callout.icon = {
+              type: 'external',
+              external: { url: calloutImage }
+            };
+          } else {
+            // Use default emoji if no image
+            calloutBlock.callout.icon = {
+              type: 'emoji',
+              emoji: 'ℹ️'
+            };
+          }
+
+          blocks.push(calloutBlock);
+        }
+        i++; // Move to next line after callout
+        continue;
+      }
+
       // Headings
       if (line.startsWith('## ')) {
         blocks.push({
@@ -412,74 +502,6 @@ const NotionAPI = {
           });
         }
         i++;
-        continue;
-      }
-
-      // Videos (HTML video tags)
-      if (line.includes('<video')) {
-        const srcMatch = line.match(/src="(.*?)"/);
-        if (srcMatch) {
-          const videoUrl = srcMatch[1];
-          blocks.push({
-            object: 'block',
-            type: 'video',
-            video: {
-              type: 'external',
-              external: { url: videoUrl }
-            }
-          });
-        }
-        i++;
-        continue;
-      }
-
-      // Callout boxes (HTML divs with styles)
-      if (line.includes('<div style="display: grid')) {
-        // Extract image and text from callout
-        let calloutText = '';
-        let calloutImage = '';
-
-        // Look ahead for img and div content
-        while (i < lines.length && !lines[i].includes('</div>')) {
-          const currentLine = lines[i];
-
-          // Extract image URL
-          const imgMatch = currentLine.match(/src="(.*?)"/);
-          if (imgMatch) {
-            calloutImage = imgMatch[1];
-          }
-
-          // Extract text content
-          const textMatch = currentLine.match(/<div>(.*?)<\/div>/);
-          if (textMatch) {
-            calloutText = textMatch[1];
-          }
-
-          i++;
-        }
-        i++; // Skip closing </div>
-
-        // Create callout block
-        if (calloutText) {
-          const calloutBlock = {
-            object: 'block',
-            type: 'callout',
-            callout: {
-              rich_text: [{ type: 'text', text: { content: calloutText } }],
-              color: 'gray_background'
-            }
-          };
-
-          // Add icon/emoji if we have an image
-          if (calloutImage) {
-            calloutBlock.callout.icon = {
-              type: 'external',
-              external: { url: calloutImage }
-            };
-          }
-
-          blocks.push(calloutBlock);
-        }
         continue;
       }
 
