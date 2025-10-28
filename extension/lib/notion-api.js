@@ -393,32 +393,51 @@ const NotionAPI = {
           calloutText = innerDivMatch[1].trim();
         }
 
-        // Create callout block
+        // Create callout block with custom layout for better image display
         if (calloutText) {
-          const calloutBlock = {
-            object: 'block',
-            type: 'callout',
-            callout: {
-              rich_text: [{ type: 'text', text: { content: calloutText } }],
-              color: 'gray_background'
-            }
-          };
-
-          // Add icon if we have an image
           if (calloutImage) {
-            calloutBlock.callout.icon = {
-              type: 'external',
-              external: { url: calloutImage }
-            };
+            // Use toggle block instead of quote to avoid empty line
+            blocks.push({
+              object: 'block',
+              type: 'toggle',
+              toggle: {
+                rich_text: [{ type: 'text', text: { content: '📌 Note' } }],
+                color: 'gray_background',
+                children: [
+                  {
+                    object: 'block',
+                    type: 'image',
+                    image: {
+                      type: 'external',
+                      external: { url: calloutImage }
+                    }
+                  },
+                  {
+                    object: 'block',
+                    type: 'paragraph',
+                    paragraph: {
+                      rich_text: [{ type: 'text', text: { content: calloutText } }]
+                    }
+                  }
+                ]
+              }
+            });
           } else {
-            // Use default emoji if no image
-            calloutBlock.callout.icon = {
-              type: 'emoji',
-              emoji: 'ℹ️'
+            // No image - use regular callout with emoji
+            const calloutBlock = {
+              object: 'block',
+              type: 'callout',
+              callout: {
+                rich_text: [{ type: 'text', text: { content: calloutText } }],
+                color: 'gray_background',
+                icon: {
+                  type: 'emoji',
+                  emoji: 'ℹ️'
+                }
+              }
             };
+            blocks.push(calloutBlock);
           }
-
-          blocks.push(calloutBlock);
         }
         i++; // Move to next line after callout
         continue;
