@@ -107,8 +107,6 @@ function formatData(data, format) {
       jsonData.solution = data.solution || '';
     } else {
       jsonData.allFiles = data.allFiles || [];
-      jsonData.starterCode = data.starterCode || 'Not found';
-      jsonData.testCode = data.testCode || 'Not found';
       jsonData.userCode = data.userCode || '';
       jsonData.solution = data.solution || '';
     }
@@ -172,13 +170,9 @@ function formatData(data, format) {
           markdown += `### ${file.fileName}\n\n`;
           markdown += `\`\`\`${lang}\n${file.code}\n\`\`\`\n\n`;
         });
-      } else {
-        const lang = data.language || 'python';
-        markdown += `## Starter Code\n\`\`\`${lang}\n${data.starterCode || 'Not found'}\n\`\`\`\n\n`;
-        markdown += `## Test Code\n\`\`\`${lang}\n${data.testCode || 'Not found'}\n\`\`\`\n\n`;
       }
 
-      if (data.userCode && data.userCode !== data.starterCode && data.userCode.trim() !== 'pass') {
+      if (data.userCode && data.userCode.trim() !== 'pass') {
         const lang = data.language || 'python';
         markdown += `## My Solution Attempt\n\`\`\`${lang}\n${data.userCode}\n\`\`\`\n\n`;
       }
@@ -241,12 +235,9 @@ function formatData(data, format) {
         data.allFiles.forEach(file => {
           text += `${file.fileName}:\n${file.code}\n\n`;
         });
-      } else {
-        text += `STARTER CODE:\n${data.starterCode || 'Not found'}\n\n`;
-        text += `TEST CODE:\n${data.testCode || 'Not found'}\n\n`;
       }
 
-      if (data.userCode && data.userCode !== data.starterCode && data.userCode.trim() !== 'pass') {
+      if (data.userCode && data.userCode.trim() !== 'pass') {
         text += `MY SOLUTION ATTEMPT:\n${data.userCode}\n\n`;
       }
 

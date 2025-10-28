@@ -155,8 +155,6 @@ async function extractContent() {
     description: '',
     requirements: [],
     examples: [],
-    starterCode: '',
-    testCode: '',
     notes: [],
     allFiles: [],
     userCode: '',
@@ -439,21 +437,15 @@ async function extractAllTabs(data) {
   // Store all files
   data.allFiles = codeFiles;
 
-  // Separate starter and test code
-  const starterFile = codeFiles.find(f =>
+  // Find the main file to set userCode and language
+  const mainFile = codeFiles.find(f =>
     (f.fileName.includes('main') || f.fileName.includes('index') || f.fileName.includes('solution'))
     && !f.fileName.includes('test')
   );
-  const testFile = codeFiles.find(f => f.fileName.includes('test'));
 
-  if (starterFile) {
-    data.starterCode = starterFile.code;
-    data.userCode = starterFile.code;
-    data.language = starterFile.language;
-  }
-
-  if (testFile) {
-    data.testCode = testFile.code;
+  if (mainFile) {
+    data.userCode = mainFile.code;
+    data.language = mainFile.language;
   }
 }
 

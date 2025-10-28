@@ -35,11 +35,9 @@ const Validator = {
         errors.push('No interview messages found');
       }
     } else if (data.exerciseType === 'coding') {
-      // Coding exercises should have either allFiles or starterCode
+      // Coding exercises should have code files
       if (!data.allFiles || data.allFiles.length === 0) {
-        if (!data.starterCode || data.starterCode.trim() === '') {
-          errors.push('No code files or starter code found');
-        }
+        errors.push('No code files found');
       }
     }
 

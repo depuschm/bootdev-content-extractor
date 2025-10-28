@@ -276,45 +276,6 @@ const NotionAPI = {
             }
           });
         });
-      } else {
-        // Fallback to starter code and test code
-        if (content.starterCode) {
-          blocks.push({
-            object: 'block',
-            type: 'heading_2',
-            heading_2: {
-              rich_text: [{ type: 'text', text: { content: 'Starter Code' } }]
-            }
-          });
-
-          blocks.push({
-            object: 'block',
-            type: 'code',
-            code: {
-              rich_text: [{ type: 'text', text: { content: content.starterCode } }],
-              language: this.mapLanguage(content.language)
-            }
-          });
-        }
-
-        if (content.testCode) {
-          blocks.push({
-            object: 'block',
-            type: 'heading_2',
-            heading_2: {
-              rich_text: [{ type: 'text', text: { content: 'Test Code' } }]
-            }
-          });
-
-          blocks.push({
-            object: 'block',
-            type: 'code',
-            code: {
-              rich_text: [{ type: 'text', text: { content: content.testCode } }],
-              language: this.mapLanguage(content.language)
-            }
-          });
-        }
       }
 
       // Add solution if available
