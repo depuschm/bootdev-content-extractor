@@ -369,6 +369,11 @@ async function extractAllTabs(data) {
   const tabButtons = Array.from(document.querySelectorAll('ul[role="tablist"] button'));
   const initialTab = tabButtons.find(b => b.getAttribute('aria-selected') === 'true') || tabButtons[0];
 
+  if (tabButtons.length === 0) {
+    Logger.debug('No code editor tabs found (this may be a text-only exercise)');
+    return;
+  }
+
   console.log(`Found ${tabButtons.length} tabs`);
 
   const codeFiles = [];

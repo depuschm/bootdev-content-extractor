@@ -35,10 +35,8 @@ const Validator = {
         errors.push('No interview messages found');
       }
     } else if (data.exerciseType === 'coding') {
-      // Coding exercises should have code files
-      if (!data.allFiles || data.allFiles.length === 0) {
-        errors.push('No code files found');
-      }
+      // Coding exercises may or may not have code files (some are just text/multiple choice)
+      // So we don't validate the presence of allFiles
     }
 
     return {
