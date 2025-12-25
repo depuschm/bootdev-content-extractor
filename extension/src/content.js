@@ -166,7 +166,7 @@ async function extractContent() {
     expectedPoints: []
   };
 
-  // Detect programming language
+  // Initial language detection from URL (will be refined later)
   data.language = detectLanguage(url);
 
   // Extract viewer content (left side)
@@ -186,6 +186,27 @@ async function extractContent() {
     data.exerciseType = Config.EXERCISE_TYPES.CODING;
     Logger.emoji(Config.LOG.DETECTED_CODING);
     await extractAllTabs(data);
+
+    // IMPROVED: After extracting all files, refine the language detection
+    if (data.allFiles && data.allFiles.length > 0) {
+      // Find the main file to determine the primary language
+      const mainFile = data.allFiles.find(f =>
+        (f.fileName.includes('main') || f.fileName.includes('index') || f.fileName.includes('solution'))
+        && !f.fileName.includes('test')
+      );
+
+      if (mainFile && mainFile.language) {
+        data.language = mainFile.language;
+      } else if (data.allFiles[0].language) {
+        // Fallback to first file's language
+        data.language = data.allFiles[0].language;
+      }
+
+      // Set userCode from main file
+      if (mainFile) {
+        data.userCode = mainFile.code;
+      }
+    }
   }
 
   // Extract solution if enabled and available
@@ -407,20 +428,24 @@ async function extractAllTabs(data) {
 
     processed.add(editor);
 
-    // Extract code from this editor
-    const code = await extractCodeFromEditor(editor);
-
-    // Get tab name
+    // Get tab name FIRST to detect language
     let fileName = `file_${i}`;
-    let fileLanguage = data.language;
+    let fileLanguage = data.language; // Start with initial guess
 
     if (tabButtons[i]) {
       const tabText = tabButtons[i].textContent.trim();
       if (tabText) {
         fileName = tabText;
-        fileLanguage = detectLanguageFromFilename(fileName) || data.language;
+        // Detect language from filename
+        const detectedLang = detectLanguageFromFilename(fileName);
+        if (detectedLang) {
+          fileLanguage = detectedLang;
+        }
       }
     }
+
+    // Extract code from this editor
+    const code = await extractCodeFromEditor(editor);
 
     codeFiles.push({
       fileName: fileName,
@@ -429,7 +454,7 @@ async function extractAllTabs(data) {
       isActive: i === tabButtons.findIndex(b => b === initialTab)
     });
 
-    console.log(`  ✅ Captured: ${fileName} (${code.split('\n').length} lines)`);
+    console.log(`  ✅ Captured: ${fileName} (${fileLanguage}) - ${code.split('\n').length} lines`);
   }
 
   // Return to initial tab
@@ -441,17 +466,6 @@ async function extractAllTabs(data) {
 
   // Store all files
   data.allFiles = codeFiles;
-
-  // Find the main file to set userCode and language
-  const mainFile = codeFiles.find(f =>
-    (f.fileName.includes('main') || f.fileName.includes('index') || f.fileName.includes('solution'))
-    && !f.fileName.includes('test')
-  );
-
-  if (mainFile) {
-    data.userCode = mainFile.code;
-    data.language = mainFile.language;
-  }
 }
 
 // Extract solution code if available (for coding exercises)
