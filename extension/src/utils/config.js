@@ -138,7 +138,7 @@ const Config = {
     EXTRACT_SOLUTION: true,
     INCLUDE_METADATA: true,
     NOTION_ENABLED: false,
-    LANGUAGE: 'python',
+    LANGUAGE: 'unknown',
   },
 
   // Export formats

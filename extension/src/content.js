@@ -166,9 +166,6 @@ async function extractContent() {
     expectedPoints: []
   };
 
-  // Initial language detection from URL (will be refined later)
-  data.language = detectLanguage(url);
-
   // Extract viewer content (left side)
   await extractViewerContent(data);
 
@@ -187,7 +184,7 @@ async function extractContent() {
     Logger.emoji(Config.LOG.DETECTED_CODING);
     await extractAllTabs(data);
 
-    // IMPROVED: After extracting all files, refine the language detection
+    // IMPROVED: After extracting all files, set the language from actual file extensions
     if (data.allFiles && data.allFiles.length > 0) {
       // Find the main file to determine the primary language
       const mainFile = data.allFiles.find(f =>
@@ -430,7 +427,7 @@ async function extractAllTabs(data) {
 
     // Get tab name FIRST to detect language
     let fileName = `file_${i}`;
-    let fileLanguage = data.language; // Start with initial guess
+    let fileLanguage = Config.DEFAULTS.LANGUAGE;
 
     if (tabButtons[i]) {
       const tabText = tabButtons[i].textContent.trim();
@@ -534,38 +531,7 @@ function isEditorVisible(editor) {
   return true;
 }
 
-// Detect programming language from URL or page content
-function detectLanguage(url) {
-  // Check URL for course indicators
-  if (url.includes('/learn-python') || url.includes('python')) return 'python';
-  if (url.includes('/learn-javascript') || url.includes('javascript')) return 'javascript';
-  if (url.includes('/learn-typescript') || url.includes('typescript')) return 'typescript';
-  if (url.includes('/learn-go') || url.includes('golang')) return 'go';
-  if (url.includes('/learn-sql') || url.includes('sql')) return 'sql';
-  if (url.includes('/learn-c')) return 'c';
-  if (url.includes('/learn-cpp')) return 'cpp';
-  if (url.includes('/learn-rust')) return 'rust';
-  if (url.includes('/learn-java')) return 'java';
-  if (url.includes('/learn-shell')) return 'shell';
-
-  // Try to detect from page title
-  const titleElement = document.querySelector('title');
-  if (titleElement) {
-    const title = titleElement.textContent.toLowerCase();
-    if (title.includes('python')) return 'python';
-    if (title.includes('javascript')) return 'javascript';
-    if (title.includes('typescript')) return 'typescript';
-    if (title.includes('golang') || title.includes('go ')) return 'go';
-    if (title.includes('sql')) return 'sql';
-    if (title.includes('rust')) return 'rust';
-    if (title.includes('java')) return 'java';
-  }
-
-  // Default to python if can't detect
-  return 'python';
-}
-
-// Detect language from filename - NOW USES CONFIG
+// Detect language from filename - USES CONFIG
 function detectLanguageFromFilename(filename) {
   return Config.detectLanguageFromFilename(filename);
 }
