@@ -1,5 +1,5 @@
 // Notion API integration for Boot.dev Content Extractor
-// Cross-browser compatible with interview and multiple-choice exercise support
+// Cross-browser compatible with interview, multiple-choice, and free-text exercise support
 
 const NotionAPI = {
   baseURL: 'https://api.notion.com/v1',
@@ -34,7 +34,8 @@ const NotionAPI = {
       properties['Exercise Type'] = {
         select: {
           name: content.exerciseType === 'interview' ? 'Interview' :
-            content.exerciseType === 'multiple-choice' ? 'Multiple Choice' : 'Coding'
+            content.exerciseType === 'multiple-choice' ? 'Multiple Choice' :
+              content.exerciseType === 'free-text' ? 'Free Text' : 'Coding'
         }
       };
     }
@@ -87,6 +88,7 @@ const NotionAPI = {
     const blocks = [];
     const isInterview = content.exerciseType === 'interview';
     const isMultipleChoice = content.exerciseType === 'multiple-choice';
+    const isFreeText = content.exerciseType === 'free-text';
 
     // Parse description markdown to blocks
     if (content.description) {
@@ -209,6 +211,62 @@ const NotionAPI = {
             }],
             icon: { type: 'emoji', emoji: '👉' },
             color: 'blue_background'
+          }
+        });
+      }
+    }
+    // Free-text specific content
+    else if (isFreeText && content.freeText) {
+      if (content.freeText.userAnswer) {
+        blocks.push({
+          object: 'block',
+          type: 'heading_2',
+          heading_2: {
+            rich_text: [{ type: 'text', text: { content: 'My Answer' } }]
+          }
+        });
+
+        const chunks = this.splitIntoChunks(content.freeText.userAnswer, 1900);
+        chunks.forEach(chunk => {
+          blocks.push({
+            object: 'block',
+            type: 'paragraph',
+            paragraph: {
+              rich_text: [{ type: 'text', text: { content: chunk } }]
+            }
+          });
+        });
+      }
+
+      if (content.freeText.checks && content.freeText.checks.length > 0) {
+        blocks.push({
+          object: 'block',
+          type: 'heading_2',
+          heading_2: {
+            rich_text: [{ type: 'text', text: { content: 'Validation Checks' } }]
+          }
+        });
+
+        content.freeText.checks.forEach(check => {
+          blocks.push({
+            object: 'block',
+            type: 'numbered_list_item',
+            numbered_list_item: {
+              rich_text: [{ type: 'text', text: { content: check.description } }]
+            }
+          });
+
+          if (check.expectedValues && check.expectedValues.length > 0) {
+            check.expectedValues.forEach(value => {
+              blocks.push({
+                object: 'block',
+                type: 'code',
+                code: {
+                  rich_text: [{ type: 'text', text: { content: value } }],
+                  language: 'plain text'
+                }
+              });
+            });
           }
         });
       }

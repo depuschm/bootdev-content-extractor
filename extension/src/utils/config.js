@@ -34,6 +34,14 @@ const Config = {
 
     // Tabs
     TAB_LIST: 'ul[role="tablist"] button',
+
+    // Free-text specific
+    FREE_TEXT_TEXTAREA: 'textarea[aria-label="Lesson answer"]',
+    FREE_TEXT_CHECKS: 'ol.list-inside.list-decimal',
+    FREE_TEXT_TOGGLE: 'button:has(.lucide-eye)',
+
+    // Multiple-choice specific
+    MULTIPLE_CHOICE_CONTAINER: '.viewer-mcq',
   },
 
   // URL patterns
@@ -295,6 +303,7 @@ const Config = {
     CODING: 'coding',
     INTERVIEW: 'interview',
     MULTIPLE_CHOICE: 'multiple-choice',
+    FREE_TEXT: 'free-text',
   },
 
   // Content types
@@ -328,12 +337,14 @@ const Config = {
     DETECTED_CODING: '💻 Detected coding exercise',
     DETECTED_INTERVIEW: '🎙️ Detected interview exercise',
     DETECTED_MULTIPLE_CHOICE: '✅ Detected multiple-choice exercise',
+    DETECTED_FREE_TEXT: '📝 Detected free-text exercise',
     EXTRACTING_INTERVIEW: '🗣️ Extracting interview messages...',
-    EXTRACTING_MULTIPLE_CHOICE: '📝 Extracting multiple-choice question...',
+    EXTRACTING_MULTIPLE_CHOICE: '📋 Extracting multiple-choice question...',
+    EXTRACTING_FREE_TEXT: '✍️ Extracting free-text question...',
     LOOKING_FOR_SOLUTION: '\n💡 Looking for interview solution...',
     PROCESSING_TAB: '\n📂 Processing tab #',
     RETURNING_TO_TAB: '\n🔙 Returning to initial tab...',
-    SOLUTION_VIEW_DETECTED: '\n💡 Solution view detected — capturing right-side editor...',
+    SOLUTION_VIEW_DETECTED: '\n💡 Solution view detected – capturing right-side editor...',
   },
 
   // Helper functions

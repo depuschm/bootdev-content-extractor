@@ -1,4 +1,4 @@
-// Popup script - Cross-browser compatible with multiple-choice support
+// Popup script - Cross-browser compatible with free-text support
 // Get the correct API (browser or chrome wrapped in Promise)
 const api = window.browserAPI || (typeof browser !== 'undefined' ? browser : chrome);
 
@@ -88,6 +88,7 @@ function formatData(data, format) {
   const includeMetadata = data.includeMetadata !== false;
   const isInterview = data.exerciseType === Config.EXERCISE_TYPES.INTERVIEW;
   const isMultipleChoice = data.exerciseType === Config.EXERCISE_TYPES.MULTIPLE_CHOICE;
+  const isFreeText = data.exerciseType === Config.EXERCISE_TYPES.FREE_TEXT;
   const version = Config.getExtensionVersion();
 
   if (format === Config.FORMATS.JSON) {
@@ -102,7 +103,9 @@ function formatData(data, format) {
       examples: data.examples || []
     };
 
-    if (isMultipleChoice) {
+    if (isFreeText) {
+      jsonData.freeText = data.freeText || null;
+    } else if (isMultipleChoice) {
       jsonData.multipleChoice = data.multipleChoice || null;
     } else if (isInterview) {
       jsonData.interviewMessages = data.interviewMessages || [];
@@ -145,8 +148,27 @@ function formatData(data, format) {
       markdown += '\n';
     }
 
+    // Free-text specific content
+    if (isFreeText && data.freeText) {
+      if (data.freeText.userAnswer) {
+        markdown += `## My Answer\n\n${data.freeText.userAnswer}\n\n`;
+      }
+
+      if (data.freeText.checks && data.freeText.checks.length > 0) {
+        markdown += `## Validation Checks\n\n`;
+        data.freeText.checks.forEach(check => {
+          markdown += `${check.index}. ${check.description}\n`;
+          if (check.expectedValues && check.expectedValues.length > 0) {
+            check.expectedValues.forEach(value => {
+              markdown += `   - \`${value}\`\n`;
+            });
+          }
+        });
+        markdown += '\n';
+      }
+    }
     // Multiple-choice specific content
-    if (isMultipleChoice && data.multipleChoice) {
+    else if (isMultipleChoice && data.multipleChoice) {
       markdown += `## Question\n\n${data.multipleChoice.question}\n\n`;
       markdown += `## Options\n\n`;
       data.multipleChoice.options.forEach(option => {
@@ -227,8 +249,27 @@ function formatData(data, format) {
       text += '\n';
     }
 
+    // Free-text specific content
+    if (isFreeText && data.freeText) {
+      if (data.freeText.userAnswer) {
+        text += `MY ANSWER:\n${data.freeText.userAnswer}\n\n`;
+      }
+
+      if (data.freeText.checks && data.freeText.checks.length > 0) {
+        text += `VALIDATION CHECKS:\n`;
+        data.freeText.checks.forEach(check => {
+          text += `${check.index}. ${check.description}\n`;
+          if (check.expectedValues && check.expectedValues.length > 0) {
+            check.expectedValues.forEach(value => {
+              text += `   - ${value}\n`;
+            });
+          }
+        });
+        text += '\n';
+      }
+    }
     // Multiple-choice specific content
-    if (isMultipleChoice && data.multipleChoice) {
+    else if (isMultipleChoice && data.multipleChoice) {
       text += `QUESTION:\n${data.multipleChoice.question}\n\n`;
       text += `OPTIONS:\n`;
       data.multipleChoice.options.forEach(option => {
@@ -310,7 +351,11 @@ async function extractContent() {
 
       let previewText = `Title: ${currentData.title || 'N/A'}\nType: ${currentData.type}\nExercise Type: ${currentData.exerciseType}\nLanguage: ${currentData.language || 'Unknown'}`;
 
-      if (currentData.exerciseType === Config.EXERCISE_TYPES.MULTIPLE_CHOICE) {
+      if (currentData.exerciseType === Config.EXERCISE_TYPES.FREE_TEXT) {
+        const checkCount = currentData.freeText?.checks?.length || 0;
+        const answerLength = currentData.freeText?.userAnswer?.length || 0;
+        previewText += `\nAnswer: ${answerLength} characters\nChecks: ${checkCount}`;
+      } else if (currentData.exerciseType === Config.EXERCISE_TYPES.MULTIPLE_CHOICE) {
         const optCount = currentData.multipleChoice?.options?.length || 0;
         previewText += `\nQuestion: ${currentData.multipleChoice?.question?.substring(0, 50) || 'N/A'}...\nOptions: ${optCount}`;
       } else if (currentData.exerciseType === Config.EXERCISE_TYPES.INTERVIEW) {
