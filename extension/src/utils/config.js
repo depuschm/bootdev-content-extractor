@@ -378,6 +378,15 @@ const Config = {
     }
     return language ? language.charAt(0).toUpperCase() + language.slice(1).toLowerCase() : 'Unknown';
   },
+
+  /**
+   * Get extension version from manifest
+   * @returns {string} Extension version number
+   */
+  getExtensionVersion() {
+    const api = window.browserAPI || (typeof browser !== 'undefined' ? browser : chrome);
+    return api.runtime.getManifest().version;
+  },
 };
 
 // Make available to other scripts

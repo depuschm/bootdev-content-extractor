@@ -88,7 +88,7 @@ function formatData(data, format) {
   const includeMetadata = data.includeMetadata !== false;
   const isInterview = data.exerciseType === Config.EXERCISE_TYPES.INTERVIEW;
   const isMultipleChoice = data.exerciseType === Config.EXERCISE_TYPES.MULTIPLE_CHOICE;
-  const version = api.runtime.getManifest().version;
+  const version = Config.getExtensionVersion();
 
   if (format === Config.FORMATS.JSON) {
     const jsonData = {
@@ -381,8 +381,7 @@ async function handleNotionExport() {
     const result = await NotionAPI.createPage(
       settings.notionToken,
       databaseId,
-      currentData,
-      api.runtime.getManifest().version
+      currentData
     );
 
     // Show success

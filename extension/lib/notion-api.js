@@ -6,7 +6,7 @@ const NotionAPI = {
   version: '2022-06-28',
 
   // Create a new page in a database
-  async createPage(token, databaseId, content, version = '1.2.0') {
+  async createPage(token, databaseId, content) {
     const url = `${this.baseURL}/pages`;
 
     const properties = {
@@ -54,7 +54,7 @@ const NotionAPI = {
     }
 
     // Convert content to Notion blocks
-    const children = this.contentToBlocks(content, version);
+    const children = this.contentToBlocks(content);
 
     const body = {
       parent: {
@@ -83,7 +83,7 @@ const NotionAPI = {
   },
 
   // Convert extracted content to Notion blocks
-  contentToBlocks(content, version = '1.2.0') {
+  contentToBlocks(content) {
     const blocks = [];
     const isInterview = content.exerciseType === 'interview';
     const isMultipleChoice = content.exerciseType === 'multiple-choice';
@@ -364,7 +364,7 @@ const NotionAPI = {
         rich_text: [
           {
             type: 'text',
-            text: { content: `Extracted with Boot.dev Content Extractor v${version}` },
+            text: { content: `Extracted with Boot.dev Content Extractor v${Config.getExtensionVersion()}` },
             annotations: { italic: true }
           }
         ]
