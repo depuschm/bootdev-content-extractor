@@ -1,4 +1,4 @@
-// Popup script - Cross-browser compatible with interview support
+// Popup script - Cross-browser compatible with multiple-choice support
 // Get the correct API (browser or chrome wrapped in Promise)
 const api = window.browserAPI || (typeof browser !== 'undefined' ? browser : chrome);
 
@@ -87,6 +87,7 @@ function getFileExtension(language) {
 function formatData(data, format) {
   const includeMetadata = data.includeMetadata !== false;
   const isInterview = data.exerciseType === Config.EXERCISE_TYPES.INTERVIEW;
+  const isMultipleChoice = data.exerciseType === Config.EXERCISE_TYPES.MULTIPLE_CHOICE;
   const version = api.runtime.getManifest().version;
 
   if (format === Config.FORMATS.JSON) {
@@ -101,7 +102,9 @@ function formatData(data, format) {
       examples: data.examples || []
     };
 
-    if (isInterview) {
+    if (isMultipleChoice) {
+      jsonData.multipleChoice = data.multipleChoice || null;
+    } else if (isInterview) {
       jsonData.interviewMessages = data.interviewMessages || [];
       jsonData.expectedPoints = data.expectedPoints || [];
       jsonData.solution = data.solution || '';
@@ -142,8 +145,22 @@ function formatData(data, format) {
       markdown += '\n';
     }
 
+    // Multiple-choice specific content
+    if (isMultipleChoice && data.multipleChoice) {
+      markdown += `## Question\n\n${data.multipleChoice.question}\n\n`;
+      markdown += `## Options\n\n`;
+      data.multipleChoice.options.forEach(option => {
+        const marker = option.isSelected ? '✓' : ' ';
+        markdown += `${option.index}. [${marker}] ${option.text}\n`;
+      });
+      markdown += '\n';
+
+      if (data.multipleChoice.selectedAnswer) {
+        markdown += `**Selected Answer:** Option ${data.multipleChoice.selectedAnswer}\n\n`;
+      }
+    }
     // Interview-specific content
-    if (isInterview) {
+    else if (isInterview) {
       if (data.interviewMessages && data.interviewMessages.length > 0) {
         markdown += `## Interview Transcript\n\n`;
         data.interviewMessages.forEach(msg => {
@@ -210,8 +227,22 @@ function formatData(data, format) {
       text += '\n';
     }
 
+    // Multiple-choice specific content
+    if (isMultipleChoice && data.multipleChoice) {
+      text += `QUESTION:\n${data.multipleChoice.question}\n\n`;
+      text += `OPTIONS:\n`;
+      data.multipleChoice.options.forEach(option => {
+        const marker = option.isSelected ? '[X]' : '[ ]';
+        text += `${option.index}. ${marker} ${option.text}\n`;
+      });
+      text += '\n';
+
+      if (data.multipleChoice.selectedAnswer) {
+        text += `SELECTED ANSWER: Option ${data.multipleChoice.selectedAnswer}\n\n`;
+      }
+    }
     // Interview-specific content
-    if (isInterview) {
+    else if (isInterview) {
       if (data.interviewMessages && data.interviewMessages.length > 0) {
         text += `INTERVIEW TRANSCRIPT:\n\n`;
         data.interviewMessages.forEach(msg => {
@@ -279,7 +310,10 @@ async function extractContent() {
 
       let previewText = `Title: ${currentData.title || 'N/A'}\nType: ${currentData.type}\nExercise Type: ${currentData.exerciseType}\nLanguage: ${currentData.language || 'Unknown'}`;
 
-      if (currentData.exerciseType === Config.EXERCISE_TYPES.INTERVIEW) {
+      if (currentData.exerciseType === Config.EXERCISE_TYPES.MULTIPLE_CHOICE) {
+        const optCount = currentData.multipleChoice?.options?.length || 0;
+        previewText += `\nQuestion: ${currentData.multipleChoice?.question?.substring(0, 50) || 'N/A'}...\nOptions: ${optCount}`;
+      } else if (currentData.exerciseType === Config.EXERCISE_TYPES.INTERVIEW) {
         const msgCount = currentData.interviewMessages?.length || 0;
         previewText += `\nInterview Messages: ${msgCount}`;
         if (currentData.expectedPoints?.length > 0) {

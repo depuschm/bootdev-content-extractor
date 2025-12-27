@@ -112,6 +112,148 @@ const Config = {
     'xml': 'xml',
   },
 
+  // Notion API language mapping
+  // Complete list of languages supported by Notion API (as of version 2022-06-28)
+  NOTION_LANGUAGES: {
+    // Boot.dev common languages
+    'python': 'python',
+    'javascript': 'javascript',
+    'typescript': 'typescript',
+    'go': 'go',
+    'sql': 'sql',
+    'c': 'c',
+    'cpp': 'c++',
+    'c++': 'c++',
+    'rust': 'rust',
+    'java': 'java',
+    'shell': 'shell',
+    'bash': 'bash',
+    'json': 'json',
+    'yaml': 'yaml',
+    'markdown': 'markdown',
+    'html': 'html',
+    'css': 'css',
+
+    // Additional Notion-supported languages
+    'abap': 'abap',
+    'arduino': 'arduino',
+    'basic': 'basic',
+    'clojure': 'clojure',
+    'coffeescript': 'coffeescript',
+    'csharp': 'c#',
+    'c#': 'c#',
+    'dart': 'dart',
+    'diff': 'diff',
+    'docker': 'docker',
+    'dockerfile': 'docker',
+    'elixir': 'elixir',
+    'elm': 'elm',
+    'erlang': 'erlang',
+    'flow': 'flow',
+    'fortran': 'fortran',
+    'fsharp': 'f#',
+    'f#': 'f#',
+    'gherkin': 'gherkin',
+    'glsl': 'glsl',
+    'graphql': 'graphql',
+    'groovy': 'groovy',
+    'haskell': 'haskell',
+    'julia': 'julia',
+    'kotlin': 'kotlin',
+    'latex': 'latex',
+    'tex': 'latex',
+    'less': 'less',
+    'lisp': 'lisp',
+    'livescript': 'livescript',
+    'lua': 'lua',
+    'makefile': 'makefile',
+    'make': 'makefile',
+    'markup': 'markup',
+    'matlab': 'matlab',
+    'mermaid': 'mermaid',
+    'nix': 'nix',
+    'objective-c': 'objective-c',
+    'objc': 'objective-c',
+    'ocaml': 'ocaml',
+    'pascal': 'pascal',
+    'perl': 'perl',
+    'php': 'php',
+    'plaintext': 'plain text',
+    'plain text': 'plain text',
+    'text': 'plain text',
+    'powershell': 'powershell',
+    'ps1': 'powershell',
+    'prolog': 'prolog',
+    'protobuf': 'protobuf',
+    'proto': 'protobuf',
+    'r': 'r',
+    'reason': 'reason',
+    'ruby': 'ruby',
+    'rb': 'ruby',
+    'sass': 'sass',
+    'scala': 'scala',
+    'scheme': 'scheme',
+    'scss': 'scss',
+    'swift': 'swift',
+    'vb.net': 'vb.net',
+    'vbnet': 'vb.net',
+    'verilog': 'verilog',
+    'vhdl': 'vhdl',
+    'visual basic': 'visual basic',
+    'vb': 'visual basic',
+    'webassembly': 'webassembly',
+    'wasm': 'webassembly',
+    'xml': 'xml',
+    'java/c/c++/c#': 'java/c/c++/c#'
+  },
+
+  // Language display name special cases
+  LANGUAGE_DISPLAY_NAMES: {
+    'javascript': 'JavaScript',
+    'typescript': 'TypeScript',
+    'c++': 'C++',
+    'cpp': 'C++',
+    'c#': 'C#',
+    'csharp': 'C#',
+    'f#': 'F#',
+    'fsharp': 'F#',
+    'sql': 'SQL',
+    'html': 'HTML',
+    'css': 'CSS',
+    'json': 'JSON',
+    'yaml': 'YAML',
+    'xml': 'XML',
+    'php': 'PHP',
+    'graphql': 'GraphQL',
+    'glsl': 'GLSL',
+    'scss': 'SCSS',
+    'sass': 'Sass',
+    'less': 'Less',
+    'vhdl': 'VHDL',
+    'vb.net': 'VB.NET',
+    'vbnet': 'VB.NET',
+    'objective-c': 'Objective-C',
+    'objc': 'Objective-C',
+    'ocaml': 'OCaml',
+    'webassembly': 'WebAssembly',
+    'wasm': 'WebAssembly',
+    'coffeescript': 'CoffeeScript',
+    'livescript': 'LiveScript',
+    'powershell': 'PowerShell',
+    'ps1': 'PowerShell',
+    'protobuf': 'Protocol Buffers',
+    'proto': 'Protocol Buffers',
+    'dockerfile': 'Dockerfile',
+    'makefile': 'Makefile',
+    'plain text': 'Plain Text',
+    'plaintext': 'Plain Text',
+    'text': 'Plain Text',
+    'abap': 'ABAP',
+    'matlab': 'MATLAB',
+    'latex': 'LaTeX',
+    'tex': 'LaTeX'
+  },
+
   // Extraction settings
   EXTRACTION: {
     // Code editor scrolling parameters
@@ -152,6 +294,7 @@ const Config = {
   EXERCISE_TYPES: {
     CODING: 'coding',
     INTERVIEW: 'interview',
+    MULTIPLE_CHOICE: 'multiple-choice',
   },
 
   // Content types
@@ -184,11 +327,13 @@ const Config = {
   LOG: {
     DETECTED_CODING: '💻 Detected coding exercise',
     DETECTED_INTERVIEW: '🎙️ Detected interview exercise',
+    DETECTED_MULTIPLE_CHOICE: '✅ Detected multiple-choice exercise',
     EXTRACTING_INTERVIEW: '🗣️ Extracting interview messages...',
+    EXTRACTING_MULTIPLE_CHOICE: '📝 Extracting multiple-choice question...',
     LOOKING_FOR_SOLUTION: '\n💡 Looking for interview solution...',
     PROCESSING_TAB: '\n📂 Processing tab #',
     RETURNING_TO_TAB: '\n🔙 Returning to initial tab...',
-    SOLUTION_VIEW_DETECTED: '\n💡 Solution view detected – capturing right-side editor...',
+    SOLUTION_VIEW_DETECTED: '\n💡 Solution view detected — capturing right-side editor...',
   },
 
   // Helper functions
@@ -210,6 +355,28 @@ const Config = {
     if (!filename) return null;
     const ext = filename.split('.').pop()?.toLowerCase();
     return this.EXTENSION_TO_LANGUAGE[ext] || null;
+  },
+
+  /**
+   * Map language name to Notion API format
+   * @param {string} language - Language name
+   * @returns {string} Notion API language identifier
+   */
+  mapLanguageToNotion(language) {
+    return this.NOTION_LANGUAGES[language?.toLowerCase()] || 'plain text';
+  },
+
+  /**
+   * Get display name for a language
+   * @param {string} language - Language name
+   * @returns {string} Properly capitalized display name
+   */
+  getLanguageDisplayName(language) {
+    const lower = language?.toLowerCase();
+    if (this.LANGUAGE_DISPLAY_NAMES[lower]) {
+      return this.LANGUAGE_DISPLAY_NAMES[lower];
+    }
+    return language ? language.charAt(0).toUpperCase() + language.slice(1).toLowerCase() : 'Unknown';
   },
 };
 

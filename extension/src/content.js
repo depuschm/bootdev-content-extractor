@@ -1,5 +1,5 @@
 // Content script that extracts data from Boot.dev pages
-// Cross-browser compatible version with interview exercise support
+// Cross-browser compatible version with interview and multiple-choice support
 
 // Get the correct API (browser or chrome wrapped in Promise)
 const api = window.browserAPI || browser || chrome;
@@ -163,7 +163,8 @@ async function extractContent() {
     includeMetadata: settings.includeMetadata,
     exerciseType: Config.EXERCISE_TYPES.CODING,
     interviewMessages: [],
-    expectedPoints: []
+    expectedPoints: [],
+    multipleChoice: null
   };
 
   // Extract viewer content (left side)
@@ -172,8 +173,14 @@ async function extractContent() {
   // Detect exercise type
   const hasCodeEditor = document.querySelector(Config.SELECTORS.CODE_EDITOR);
   const hasInterview = document.querySelector(Config.SELECTORS.INTERVIEW_SIDE);
+  const hasMultipleChoice = document.querySelector('.viewer-mcq');
 
-  if (hasInterview && !hasCodeEditor) {
+  if (hasMultipleChoice) {
+    // This is a multiple-choice exercise
+    data.exerciseType = Config.EXERCISE_TYPES.MULTIPLE_CHOICE;
+    Logger.emoji(Config.LOG.DETECTED_MULTIPLE_CHOICE);
+    await extractMultipleChoice(data);
+  } else if (hasInterview && !hasCodeEditor) {
     // This is an interview exercise
     data.exerciseType = Config.EXERCISE_TYPES.INTERVIEW;
     Logger.emoji(Config.LOG.DETECTED_INTERVIEW);
@@ -207,7 +214,7 @@ async function extractContent() {
   }
 
   // Extract solution if enabled and available
-  if (settings.extractSolution) {
+  if (settings.extractSolution && data.exerciseType !== Config.EXERCISE_TYPES.MULTIPLE_CHOICE) {
     if (data.exerciseType === Config.EXERCISE_TYPES.INTERVIEW) {
       await extractInterviewSolution(data);
     } else {
@@ -222,6 +229,51 @@ async function extractContent() {
   }
 
   return data;
+}
+
+// Extract multiple-choice questions and options
+async function extractMultipleChoice(data) {
+  Logger.emoji(Config.LOG.EXTRACTING_MULTIPLE_CHOICE);
+
+  const mcqData = {
+    question: '',
+    options: [],
+    selectedAnswer: null
+  };
+
+  // Extract question - look for the viewer-mcq with class "answer"
+  const questionContainer = document.querySelector('.viewer-mcq.answer');
+  if (questionContainer) {
+    mcqData.question = questionContainer.textContent.trim();
+    Logger.extraction('Question', { chars: mcqData.question.length });
+  }
+
+  // Extract options - look for buttons with viewer-mcq question class
+  const optionButtons = document.querySelectorAll('button .viewer-mcq.question');
+
+  optionButtons.forEach((optionDiv, index) => {
+    const optionText = optionDiv.textContent.trim();
+    const button = optionDiv.closest('button');
+    const isSelected = button && button.classList.contains('ring-2');
+
+    mcqData.options.push({
+      index: index + 1,
+      text: optionText,
+      isSelected: isSelected
+    });
+
+    if (isSelected) {
+      mcqData.selectedAnswer = index + 1;
+    }
+
+    Logger.extraction(`Option ${index + 1}`, {
+      text: optionText.substring(0, 50),
+      selected: isSelected
+    });
+  });
+
+  data.multipleChoice = mcqData;
+  Logger.extraction(`Extracted multiple-choice with ${mcqData.options.length} options`);
 }
 
 // Extract interview messages
@@ -473,7 +525,7 @@ async function extractSolution(data) {
     if (mergeView) {
       const editors = mergeView.querySelectorAll('.cm-mergeViewEditor .cm-editor');
       if (editors.length >= 2) {
-        console.log('\n💡 Solution view detected – capturing right-side editor...');
+        console.log('\n💡 Solution view detected — capturing right-side editor...');
         const rightEditor = editors[1];
         const solutionCode = await extractCodeFromEditor(rightEditor);
 

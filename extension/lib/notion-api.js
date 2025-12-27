@@ -1,5 +1,5 @@
 // Notion API integration for Boot.dev Content Extractor
-// Cross-browser compatible with interview exercise support
+// Cross-browser compatible with interview and multiple-choice exercise support
 
 const NotionAPI = {
   baseURL: 'https://api.notion.com/v1',
@@ -33,7 +33,8 @@ const NotionAPI = {
     if (content.exerciseType) {
       properties['Exercise Type'] = {
         select: {
-          name: content.exerciseType === 'interview' ? 'Interview' : 'Coding'
+          name: content.exerciseType === 'interview' ? 'Interview' :
+            content.exerciseType === 'multiple-choice' ? 'Multiple Choice' : 'Coding'
         }
       };
     }
@@ -85,6 +86,7 @@ const NotionAPI = {
   contentToBlocks(content, version = '1.2.0') {
     const blocks = [];
     const isInterview = content.exerciseType === 'interview';
+    const isMultipleChoice = content.exerciseType === 'multiple-choice';
 
     // Parse description markdown to blocks
     if (content.description) {
@@ -157,8 +159,62 @@ const NotionAPI = {
       });
     }
 
+    // Multiple-choice specific content
+    if (isMultipleChoice && content.multipleChoice) {
+      blocks.push({
+        object: 'block',
+        type: 'heading_2',
+        heading_2: {
+          rich_text: [{ type: 'text', text: { content: 'Question' } }]
+        }
+      });
+
+      blocks.push({
+        object: 'block',
+        type: 'paragraph',
+        paragraph: {
+          rich_text: [{ type: 'text', text: { content: content.multipleChoice.question } }]
+        }
+      });
+
+      blocks.push({
+        object: 'block',
+        type: 'heading_2',
+        heading_2: {
+          rich_text: [{ type: 'text', text: { content: 'Options' } }]
+        }
+      });
+
+      content.multipleChoice.options.forEach(option => {
+        const emoji = option.isSelected ? '✅' : '⬜';
+        blocks.push({
+          object: 'block',
+          type: 'paragraph',
+          paragraph: {
+            rich_text: [
+              { type: 'text', text: { content: `${emoji} ${option.index}. ${option.text}` } }
+            ]
+          }
+        });
+      });
+
+      if (content.multipleChoice.selectedAnswer) {
+        blocks.push({
+          object: 'block',
+          type: 'callout',
+          callout: {
+            rich_text: [{
+              type: 'text',
+              text: { content: `Selected Answer: Option ${content.multipleChoice.selectedAnswer}` }
+            }],
+            icon: { type: 'emoji', emoji: '👉' },
+            color: 'blue_background'
+          }
+        });
+      }
+    }
     // Interview-specific content
-    if (isInterview) {
+    else if (isInterview) {
       if (content.interviewMessages && content.interviewMessages.length > 0) {
         blocks.push({
           object: 'block',
@@ -659,49 +715,14 @@ const NotionAPI = {
     return chunks;
   },
 
-  // Map language names to Notion's supported languages
+  // Map language names to Notion's supported languages (uses Config)
   mapLanguage(lang) {
-    const languageMap = {
-      'python': 'python',
-      'javascript': 'javascript',
-      'typescript': 'typescript',
-      'go': 'go',
-      'sql': 'sql',
-      'c': 'c',
-      'cpp': 'c++',
-      'rust': 'rust',
-      'java': 'java',
-      'shell': 'shell',
-      'bash': 'bash',
-      'json': 'json',
-      'yaml': 'yaml',
-      'markdown': 'markdown',
-      'html': 'html',
-      'css': 'css'
-    };
-
-    return languageMap[lang?.toLowerCase()] || 'plain text';
+    return Config.mapLanguageToNotion(lang);
   },
 
-  // Capitalize language name for display
+  // Capitalize language name for display (uses Config)
   capitalizeLanguage(lang) {
-    const specialCases = {
-      'javascript': 'JavaScript',
-      'typescript': 'TypeScript',
-      'cpp': 'C++',
-      'sql': 'SQL',
-      'html': 'HTML',
-      'css': 'CSS',
-      'json': 'JSON',
-      'yaml': 'YAML'
-    };
-
-    const lower = lang?.toLowerCase();
-    if (specialCases[lower]) {
-      return specialCases[lower];
-    }
-
-    return lang ? lang.charAt(0).toUpperCase() + lang.slice(1).toLowerCase() : 'Unknown';
+    return Config.getLanguageDisplayName(lang);
   },
 
   // Test connection to Notion
