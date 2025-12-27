@@ -1,5 +1,5 @@
 // Content script that extracts data from Boot.dev pages
-// Cross-browser compatible version with interview, multiple-choice, and free-text support
+// Cross-browser compatible version with interview, multiple-choice, free-text, and CLI support
 
 // Get the correct API (browser or chrome wrapped in Promise)
 const api = window.browserAPI || browser || chrome;
@@ -76,7 +76,7 @@ async function extractCodeFromEditor(editor, config = {}) {
   const reportedMax = Math.max(0, (scrollEl.scrollHeight || 0) - (scrollEl.clientHeight || 0));
   const maxScroll = Math.max(reportedMax, forcedOvershoot);
 
-  Logger.debug(`    → Scrolling: clientHeight=${scrollEl.clientHeight}, maxScroll=${maxScroll}`);
+  Logger.debug(`    ↑ Scrolling: clientHeight=${scrollEl.clientHeight}, maxScroll=${maxScroll}`);
 
   // Helper to capture rendered lines
   const captureLines = () => {
@@ -165,19 +165,26 @@ async function extractContent() {
     interviewMessages: [],
     expectedPoints: [],
     multipleChoice: null,
-    freeText: null
+    freeText: null,
+    cli: null
   };
 
   // Extract viewer content (left side)
   await extractViewerContent(data);
 
-  // Detect exercise type - Check free-text FIRST before code editor
+  // Detect exercise type - Check CLI and free-text FIRST before code editor
+  const hasCLI = document.querySelector(Config.SELECTORS.CLI_COMMAND_CONTAINER);
   const hasFreeText = document.querySelector(Config.SELECTORS.FREE_TEXT_TEXTAREA);
   const hasCodeEditor = document.querySelector(Config.SELECTORS.CODE_EDITOR);
   const hasInterview = document.querySelector(Config.SELECTORS.INTERVIEW_SIDE);
   const hasMultipleChoice = document.querySelector(Config.SELECTORS.MULTIPLE_CHOICE_CONTAINER);
 
-  if (hasFreeText) {
+  if (hasCLI && !hasCodeEditor && !hasInterview && !hasMultipleChoice && !hasFreeText) {
+    // This is a CLI exercise
+    data.exerciseType = Config.EXERCISE_TYPES.CLI;
+    Logger.emoji(Config.LOG.DETECTED_CLI);
+    await extractCLI(data);
+  } else if (hasFreeText) {
     // This is a free-text exercise
     data.exerciseType = Config.EXERCISE_TYPES.FREE_TEXT;
     Logger.emoji(Config.LOG.DETECTED_FREE_TEXT);
@@ -226,6 +233,9 @@ async function extractContent() {
       await extractInterviewSolution(data);
     } else if (data.exerciseType === Config.EXERCISE_TYPES.FREE_TEXT) {
       await extractFreeTextSolution(data);
+    } else if (data.exerciseType === Config.EXERCISE_TYPES.CLI) {
+      // CLI exercises don't have traditional solutions
+      data.solution = Config.MESSAGES.SOLUTION_NOT_AVAILABLE;
     } else {
       await extractSolution(data);
     }
@@ -238,6 +248,84 @@ async function extractContent() {
   }
 
   return data;
+}
+
+// Extract CLI commands and checks
+async function extractCLI(data) {
+  Logger.emoji(Config.LOG.EXTRACTING_CLI);
+
+  const cliData = {
+    runCommand: '',
+    submitCommand: '',
+    checks: [],
+    instructions: ''
+  };
+
+  // Extract run and submit commands
+  const commandContainers = document.querySelectorAll('.flex.w-4\\/5.justify-between.rounded-sm.border');
+  commandContainers.forEach((container, index) => {
+    const commandText = container.querySelector('p.font-mono');
+    if (commandText) {
+      const command = commandText.textContent.trim();
+      if (index === 0) {
+        cliData.runCommand = command;
+      } else if (index === 1) {
+        cliData.submitCommand = command;
+      }
+    }
+  });
+
+  Logger.extraction('CLI Commands', {
+    run: cliData.runCommand.substring(0, 50),
+    submit: cliData.submitCommand.substring(0, 50)
+  });
+
+  // Extract validation checks
+  const checksList = document.querySelector('ol.list-inside.list-decimal');
+  if (checksList) {
+    const checkItems = checksList.querySelectorAll('li');
+    checkItems.forEach((item, index) => {
+      // Get the command being checked
+      const commandSpan = item.querySelector('span.font-mono.font-bold');
+      const command = commandSpan ? commandSpan.textContent.trim() : '';
+
+      // Get expected values
+      const expectations = [];
+      const nestedList = item.querySelector('ul.ml-4.list-inside.list-disc');
+      if (nestedList) {
+        const nestedItems = nestedList.querySelectorAll('li');
+        nestedItems.forEach(nestedItem => {
+          const text = nestedItem.textContent.trim();
+          expectations.push(text);
+        });
+      }
+
+      if (command) {
+        cliData.checks.push({
+          index: index + 1,
+          command: command,
+          expectations: expectations
+        });
+
+        Logger.extraction(`Check ${index + 1}`, {
+          command: command.substring(0, 50),
+          expectations: expectations.length
+        });
+      }
+    });
+  }
+
+  // Extract instructions/description text
+  const instructionsDiv = document.querySelector('.mb-4.w-4\\/5.max-w-md');
+  if (instructionsDiv) {
+    const instructionsP = instructionsDiv.querySelector('p.text-sm');
+    if (instructionsP) {
+      cliData.instructions = instructionsP.textContent.trim();
+    }
+  }
+
+  data.cli = cliData;
+  Logger.extraction(`Extracted CLI exercise with ${cliData.checks.length} checks`);
 }
 
 // Extract free-text questions and checks
@@ -630,7 +718,7 @@ async function extractSolution(data) {
     if (mergeView) {
       const editors = mergeView.querySelectorAll('.cm-mergeViewEditor .cm-editor');
       if (editors.length >= 2) {
-        console.log('\n💡 Solution view detected – capturing right-side editor...');
+        console.log('\n💡 Solution view detected — capturing right-side editor...');
         const rightEditor = editors[1];
         const solutionCode = await extractCodeFromEditor(rightEditor);
 

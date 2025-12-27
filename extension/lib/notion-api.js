@@ -1,5 +1,5 @@
 // Notion API integration for Boot.dev Content Extractor
-// Cross-browser compatible with interview, multiple-choice, and free-text exercise support
+// Cross-browser compatible with interview, multiple-choice, free-text, and CLI exercise support
 
 const NotionAPI = {
   baseURL: 'https://api.notion.com/v1',
@@ -35,7 +35,8 @@ const NotionAPI = {
         select: {
           name: content.exerciseType === 'interview' ? 'Interview' :
             content.exerciseType === 'multiple-choice' ? 'Multiple Choice' :
-              content.exerciseType === 'free-text' ? 'Free Text' : 'Coding'
+              content.exerciseType === 'free-text' ? 'Free Text' :
+                content.exerciseType === 'cli' ? 'CLI' : 'Coding'
         }
       };
     }
@@ -86,9 +87,10 @@ const NotionAPI = {
   // Convert extracted content to Notion blocks
   contentToBlocks(content) {
     const blocks = [];
-    const isInterview = content.exerciseType === 'interview';
-    const isMultipleChoice = content.exerciseType === 'multiple-choice';
-    const isFreeText = content.exerciseType === 'free-text';
+    const isInterview = content.exerciseType === Config.EXERCISE_TYPES.INTERVIEW;
+    const isMultipleChoice = content.exerciseType === Config.EXERCISE_TYPES.MULTIPLE_CHOICE;
+    const isFreeText = content.exerciseType === Config.EXERCISE_TYPES.FREE_TEXT;
+    const isCLI = content.exerciseType === Config.EXERCISE_TYPES.CLI;
 
     // Parse description markdown to blocks
     if (content.description) {
@@ -210,6 +212,101 @@ const NotionAPI = {
               text: { content: `Selected Answer: Option ${content.multipleChoice.selectedAnswer}` }
             }],
             icon: { type: 'emoji', emoji: '👉' },
+            color: 'blue_background'
+          }
+        });
+      }
+    }
+    // CLI specific content
+    else if (isCLI && content.cli) {
+      blocks.push({
+        object: 'block',
+        type: 'heading_2',
+        heading_2: {
+          rich_text: [{ type: 'text', text: { content: 'CLI Commands' } }]
+        }
+      });
+
+      if (content.cli.runCommand) {
+        blocks.push({
+          object: 'block',
+          type: 'heading_3',
+          heading_3: {
+            rich_text: [{ type: 'text', text: { content: 'Run Command' } }]
+          }
+        });
+
+        blocks.push({
+          object: 'block',
+          type: 'code',
+          code: {
+            rich_text: [{ type: 'text', text: { content: content.cli.runCommand } }],
+            language: 'shell'
+          }
+        });
+      }
+
+      if (content.cli.submitCommand) {
+        blocks.push({
+          object: 'block',
+          type: 'heading_3',
+          heading_3: {
+            rich_text: [{ type: 'text', text: { content: 'Submit Command' } }]
+          }
+        });
+
+        blocks.push({
+          object: 'block',
+          type: 'code',
+          code: {
+            rich_text: [{ type: 'text', text: { content: content.cli.submitCommand } }],
+            language: 'shell'
+          }
+        });
+      }
+
+      if (content.cli.checks && content.cli.checks.length > 0) {
+        blocks.push({
+          object: 'block',
+          type: 'heading_2',
+          heading_2: {
+            rich_text: [{ type: 'text', text: { content: 'Validation Checks' } }]
+          }
+        });
+
+        content.cli.checks.forEach(check => {
+          blocks.push({
+            object: 'block',
+            type: 'numbered_list_item',
+            numbered_list_item: {
+              rich_text: [{ type: 'text', text: { content: `Command: ${check.command}` } }]
+            }
+          });
+
+          if (check.expectations && check.expectations.length > 0) {
+            check.expectations.forEach(expectation => {
+              blocks.push({
+                object: 'block',
+                type: 'paragraph',
+                paragraph: {
+                  rich_text: [{ type: 'text', text: { content: `   - ${expectation}` } }]
+                }
+              });
+            });
+          }
+        });
+      }
+
+      if (content.cli.instructions) {
+        blocks.push({
+          object: 'block',
+          type: 'callout',
+          callout: {
+            rich_text: [{
+              type: 'text',
+              text: { content: content.cli.instructions }
+            }],
+            icon: { type: 'emoji', emoji: '💡' },
             color: 'blue_background'
           }
         });

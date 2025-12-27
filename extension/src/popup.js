@@ -1,4 +1,4 @@
-// Popup script - Cross-browser compatible with free-text support
+// Popup script - Cross-browser compatible with free-text and CLI support
 // Get the correct API (browser or chrome wrapped in Promise)
 const api = window.browserAPI || (typeof browser !== 'undefined' ? browser : chrome);
 
@@ -89,6 +89,7 @@ function formatData(data, format) {
   const isInterview = data.exerciseType === Config.EXERCISE_TYPES.INTERVIEW;
   const isMultipleChoice = data.exerciseType === Config.EXERCISE_TYPES.MULTIPLE_CHOICE;
   const isFreeText = data.exerciseType === Config.EXERCISE_TYPES.FREE_TEXT;
+  const isCLI = data.exerciseType === Config.EXERCISE_TYPES.CLI;
   const version = Config.getExtensionVersion();
 
   if (format === Config.FORMATS.JSON) {
@@ -105,6 +106,8 @@ function formatData(data, format) {
 
     if (isFreeText) {
       jsonData.freeText = data.freeText || null;
+    } else if (isCLI) {
+      jsonData.cli = data.cli || null;
     } else if (isMultipleChoice) {
       jsonData.multipleChoice = data.multipleChoice || null;
     } else if (isInterview) {
@@ -165,6 +168,37 @@ function formatData(data, format) {
           }
         });
         markdown += '\n';
+      }
+    }
+    // CLI specific content
+    else if (isCLI && data.cli) {
+      markdown += `## CLI Commands\n\n`;
+
+      if (data.cli.runCommand) {
+        markdown += `### Run Command\n\n`;
+        markdown += `\`\`\`shell\n${data.cli.runCommand}\n\`\`\`\n\n`;
+      }
+
+      if (data.cli.submitCommand) {
+        markdown += `### Submit Command\n\n`;
+        markdown += `\`\`\`shell\n${data.cli.submitCommand}\n\`\`\`\n\n`;
+      }
+
+      if (data.cli.checks && data.cli.checks.length > 0) {
+        markdown += `## Validation Checks\n\n`;
+        data.cli.checks.forEach(check => {
+          markdown += `${check.index}. **Command:** \`${check.command}\`\n`;
+          if (check.expectations && check.expectations.length > 0) {
+            check.expectations.forEach(expectation => {
+              markdown += `   - ${expectation}\n`;
+            });
+          }
+        });
+        markdown += '\n';
+      }
+
+      if (data.cli.instructions) {
+        markdown += `## Instructions\n\n${data.cli.instructions}\n\n`;
       }
     }
     // Multiple-choice specific content
@@ -268,6 +302,35 @@ function formatData(data, format) {
         text += '\n';
       }
     }
+    // CLI specific content
+    else if (isCLI && data.cli) {
+      text += `CLI COMMANDS:\n\n`;
+
+      if (data.cli.runCommand) {
+        text += `Run Command:\n${data.cli.runCommand}\n\n`;
+      }
+
+      if (data.cli.submitCommand) {
+        text += `Submit Command:\n${data.cli.submitCommand}\n\n`;
+      }
+
+      if (data.cli.checks && data.cli.checks.length > 0) {
+        text += `VALIDATION CHECKS:\n`;
+        data.cli.checks.forEach(check => {
+          text += `${check.index}. Command: ${check.command}\n`;
+          if (check.expectations && check.expectations.length > 0) {
+            check.expectations.forEach(expectation => {
+              text += `   - ${expectation}\n`;
+            });
+          }
+        });
+        text += '\n';
+      }
+
+      if (data.cli.instructions) {
+        text += `INSTRUCTIONS:\n${data.cli.instructions}\n\n`;
+      }
+    }
     // Multiple-choice specific content
     else if (isMultipleChoice && data.multipleChoice) {
       text += `QUESTION:\n${data.multipleChoice.question}\n\n`;
@@ -355,6 +418,9 @@ async function extractContent() {
         const checkCount = currentData.freeText?.checks?.length || 0;
         const answerLength = currentData.freeText?.userAnswer?.length || 0;
         previewText += `\nAnswer: ${answerLength} characters\nChecks: ${checkCount}`;
+      } else if (currentData.exerciseType === Config.EXERCISE_TYPES.CLI) {
+        const checkCount = currentData.cli?.checks?.length || 0;
+        previewText += `\nRun: ${currentData.cli?.runCommand || 'N/A'}\nChecks: ${checkCount}`;
       } else if (currentData.exerciseType === Config.EXERCISE_TYPES.MULTIPLE_CHOICE) {
         const optCount = currentData.multipleChoice?.options?.length || 0;
         previewText += `\nQuestion: ${currentData.multipleChoice?.question?.substring(0, 50) || 'N/A'}...\nOptions: ${optCount}`;

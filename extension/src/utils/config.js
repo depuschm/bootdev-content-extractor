@@ -42,6 +42,12 @@ const Config = {
 
     // Multiple-choice specific
     MULTIPLE_CHOICE_CONTAINER: '.viewer-mcq',
+
+    // CLI specific
+    CLI_COMMAND_CONTAINER: 'p.font-mono',
+    CLI_CHECKS_LIST: 'ol.list-inside.list-decimal',
+    CLI_CHECK_COMMAND: 'span.font-mono.font-bold',
+    CLI_CHECK_EXPECTED: 'ul.ml-4.list-inside.list-disc',
   },
 
   // URL patterns
@@ -304,6 +310,7 @@ const Config = {
     INTERVIEW: 'interview',
     MULTIPLE_CHOICE: 'multiple-choice',
     FREE_TEXT: 'free-text',
+    CLI: 'cli',
   },
 
   // Content types
@@ -338,13 +345,15 @@ const Config = {
     DETECTED_INTERVIEW: '🎙️ Detected interview exercise',
     DETECTED_MULTIPLE_CHOICE: '✅ Detected multiple-choice exercise',
     DETECTED_FREE_TEXT: '📝 Detected free-text exercise',
+    DETECTED_CLI: '⌨️ Detected CLI exercise',
     EXTRACTING_INTERVIEW: '🗣️ Extracting interview messages...',
     EXTRACTING_MULTIPLE_CHOICE: '📋 Extracting multiple-choice question...',
-    EXTRACTING_FREE_TEXT: '✍️ Extracting free-text question...',
+    EXTRACTING_FREE_TEXT: '✏️ Extracting free-text question...',
+    EXTRACTING_CLI: '💻 Extracting CLI commands...',
     LOOKING_FOR_SOLUTION: '\n💡 Looking for interview solution...',
     PROCESSING_TAB: '\n📂 Processing tab #',
     RETURNING_TO_TAB: '\n🔙 Returning to initial tab...',
-    SOLUTION_VIEW_DETECTED: '\n💡 Solution view detected – capturing right-side editor...',
+    SOLUTION_VIEW_DETECTED: '\n💡 Solution view detected — capturing right-side editor...',
   },
 
   // Helper functions
