@@ -275,25 +275,27 @@ const NotionAPI = {
         });
 
         content.cli.checks.forEach(check => {
-          blocks.push({
+          // Create nested structure for checks with expectations
+          const checkBlock = {
             object: 'block',
             type: 'numbered_list_item',
             numbered_list_item: {
               rich_text: [{ type: 'text', text: { content: `Command: ${check.command}` } }]
             }
-          });
+          };
 
+          // Add expectations as children (indented)
           if (check.expectations && check.expectations.length > 0) {
-            check.expectations.forEach(expectation => {
-              blocks.push({
-                object: 'block',
-                type: 'paragraph',
-                paragraph: {
-                  rich_text: [{ type: 'text', text: { content: `   - ${expectation}` } }]
-                }
-              });
-            });
+            checkBlock.numbered_list_item.children = check.expectations.map(expectation => ({
+              object: 'block',
+              type: 'bulleted_list_item',
+              bulleted_list_item: {
+                rich_text: [{ type: 'text', text: { content: expectation } }]
+              }
+            }));
           }
+
+          blocks.push(checkBlock);
         });
       }
 
@@ -345,26 +347,27 @@ const NotionAPI = {
         });
 
         content.freeText.checks.forEach(check => {
-          blocks.push({
+          // Create nested structure for checks with expected values
+          const checkBlock = {
             object: 'block',
             type: 'numbered_list_item',
             numbered_list_item: {
               rich_text: [{ type: 'text', text: { content: check.description } }]
             }
-          });
+          };
 
+          // Add expected values as children (indented)
           if (check.expectedValues && check.expectedValues.length > 0) {
-            check.expectedValues.forEach(value => {
-              blocks.push({
-                object: 'block',
-                type: 'code',
-                code: {
-                  rich_text: [{ type: 'text', text: { content: value } }],
-                  language: 'plain text'
-                }
-              });
-            });
+            checkBlock.numbered_list_item.children = check.expectedValues.map(value => ({
+              object: 'block',
+              type: 'bulleted_list_item',
+              bulleted_list_item: {
+                rich_text: [{ type: 'text', text: { content: value } }]
+              }
+            }));
           }
+
+          blocks.push(checkBlock);
         });
       }
     }
