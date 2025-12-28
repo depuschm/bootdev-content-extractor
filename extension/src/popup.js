@@ -1,4 +1,4 @@
-// Popup script - Cross-browser compatible with free-text and CLI support
+// Popup script - Cross-browser compatible with free-text, CLI, and chat support
 // Get the correct API (browser or chrome wrapped in Promise)
 const api = window.browserAPI || (typeof browser !== 'undefined' ? browser : chrome);
 
@@ -90,6 +90,7 @@ function formatData(data, format) {
   const isMultipleChoice = data.exerciseType === Config.EXERCISE_TYPES.MULTIPLE_CHOICE;
   const isFreeText = data.exerciseType === Config.EXERCISE_TYPES.FREE_TEXT;
   const isCLI = data.exerciseType === Config.EXERCISE_TYPES.CLI;
+  const hasChats = data.chats && data.chats.length > 0;
   const version = Config.getExtensionVersion();
 
   if (format === Config.FORMATS.JSON) {
@@ -118,6 +119,10 @@ function formatData(data, format) {
       jsonData.allFiles = data.allFiles || [];
       jsonData.userCode = data.userCode || '';
       jsonData.solution = data.solution || '';
+    }
+
+    if (hasChats) {
+      jsonData.chats = data.chats;
     }
 
     if (includeMetadata) {
@@ -206,7 +211,7 @@ function formatData(data, format) {
       markdown += `## Question\n\n${data.multipleChoice.question}\n\n`;
       markdown += `## Options\n\n`;
       data.multipleChoice.options.forEach(option => {
-        const marker = option.isSelected ? '✓' : ' ';
+        const marker = option.isSelected ? '✔' : ' ';
         markdown += `${option.index}. [${marker}] ${option.text}\n`;
       });
       markdown += '\n';
@@ -254,6 +259,23 @@ function formatData(data, format) {
         const lang = data.language || 'python';
         markdown += `## Official Solution\n\`\`\`${lang}\n${data.solution}\n\`\`\`\n\n`;
       }
+    }
+
+    // Add chat conversations if available
+    if (hasChats) {
+      markdown += `---\n\n`;
+      markdown += `# 💬 Chat Conversations\n\n`;
+
+      data.chats.forEach(chat => {
+        markdown += `## ${chat.title}\n\n`;
+
+        chat.messages.forEach(msg => {
+          markdown += `**${msg.speaker}:**\n\n`;
+          markdown += `${msg.content}\n\n`;
+        });
+
+        markdown += `---\n\n`;
+      });
     }
 
     markdown += `---\n*Extracted with ${Config.EXTENSION_NAME} v${version}*\n`;
@@ -381,6 +403,23 @@ function formatData(data, format) {
       }
     }
 
+    // Add chat conversations if available
+    if (hasChats) {
+      text += `${'='.repeat(50)}\n`;
+      text += `CHAT CONVERSATIONS\n`;
+      text += `${'='.repeat(50)}\n\n`;
+
+      data.chats.forEach(chat => {
+        text += `${chat.title}:\n${'-'.repeat(50)}\n\n`;
+
+        chat.messages.forEach(msg => {
+          text += `[${msg.speaker}]\n${msg.content}\n\n`;
+        });
+
+        text += `\n`;
+      });
+    }
+
     text += `${'='.repeat(50)}\nExtracted with ${Config.EXTENSION_NAME} v${version}\n`;
     return text;
   }
@@ -432,6 +471,11 @@ async function extractContent() {
         }
       } else if (currentData.allFiles && currentData.allFiles.length > 0) {
         previewText += `\nFiles: ${currentData.allFiles.map(f => f.fileName).join(', ')}`;
+      }
+
+      // Add chat count to preview
+      if (currentData.chats && currentData.chats.length > 0) {
+        previewText += `\nChats: ${currentData.chats.length} conversation(s)`;
       }
 
       preview.textContent = previewText;
@@ -497,7 +541,7 @@ async function handleNotionExport() {
 
     // Show success
     document.getElementById('statusText').textContent = Config.MESSAGES.NOTION_SUCCESS;
-    notionBtn.textContent = '✓ Sent to Notion!';
+    notionBtn.textContent = '✔ Sent to Notion!';
 
     setTimeout(() => {
       notionBtn.textContent = originalText;

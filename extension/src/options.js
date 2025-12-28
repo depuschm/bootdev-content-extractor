@@ -17,6 +17,7 @@ async function loadSettings() {
   const settings = await api.storage.sync.get({
     format: Config.DEFAULTS.FORMAT,
     extractSolution: Config.DEFAULTS.EXTRACT_SOLUTION,
+    extractChats: Config.DEFAULTS.EXTRACT_CHATS,
     includeMetadata: Config.DEFAULTS.INCLUDE_METADATA,
     notionEnabled: Config.DEFAULTS.NOTION_ENABLED,
     notionToken: '',
@@ -25,6 +26,7 @@ async function loadSettings() {
 
   document.getElementById('format').value = settings.format;
   document.getElementById('extractSolution').checked = settings.extractSolution;
+  document.getElementById('extractChats').checked = settings.extractChats;
   document.getElementById('includeMetadata').checked = settings.includeMetadata;
   document.getElementById('notionEnabled').checked = settings.notionEnabled;
   document.getElementById('notionToken').value = settings.notionToken;
@@ -203,7 +205,7 @@ function confirmRestoreDefaults() {
 
   // Show feedback
   const status = document.getElementById('status');
-  status.textContent = '✓ Default database types restored! Don\'t forget to save.';
+  status.textContent = '✔ Default database types restored! Don\'t forget to save.';
   status.className = 'status';
   status.style.backgroundColor = 'rgba(88, 101, 242, 0.1)';
   status.style.color = '#5865f2';
@@ -242,6 +244,7 @@ async function saveSettings() {
   const settings = {
     format: document.getElementById('format').value,
     extractSolution: document.getElementById('extractSolution').checked,
+    extractChats: document.getElementById('extractChats').checked,
     includeMetadata: document.getElementById('includeMetadata').checked,
     notionEnabled: document.getElementById('notionEnabled').checked,
     notionToken: document.getElementById('notionToken').value.trim(),
@@ -257,7 +260,7 @@ async function saveSettings() {
 
     // Show success message
     const status = document.getElementById('status');
-    status.textContent = '✓ Settings saved successfully!';
+    status.textContent = '✔ Settings saved successfully!';
     status.className = 'status success';
     status.style.display = 'block';
     // Reset any custom styles from other operations
@@ -351,7 +354,7 @@ async function testConnection() {
         .join('<br>');
 
       status.innerHTML = `
-        <strong>✓ All ${successful.length} database(s) connected successfully!</strong><br>
+        <strong>✔ All ${successful.length} database(s) connected successfully!</strong><br>
         <small style="opacity: 0.8; margin-top: 8px; display: block;">
           ${dbSummary}
         </small>
@@ -362,7 +365,7 @@ async function testConnection() {
         <strong>⚠️ Partial Success:</strong><br>
         ${successful.length} connected, ${failed.length} failed<br>
         <small style="opacity: 0.8; margin-top: 8px; display: block;">
-          ✓ Connected: ${successful.map(s => s.type).join(', ')}<br>
+          ✔ Connected: ${successful.map(s => s.type).join(', ')}<br>
           ✗ Failed: ${failed.map(f => f.type).join(', ')}
         </small>
       `;

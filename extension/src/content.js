@@ -1,5 +1,5 @@
 // Content script that extracts data from Boot.dev pages
-// Cross-browser compatible version with interview, multiple-choice, free-text, and CLI support
+// Cross-browser compatible version with interview, multiple-choice, free-text, CLI, and chat support
 
 // Get the correct API (browser or chrome wrapped in Promise)
 const api = window.browserAPI || browser || chrome;
@@ -144,7 +144,8 @@ async function extractContent() {
   // Get settings - use Promise-based API
   const settings = await api.storage.sync.get({
     extractSolution: Config.DEFAULTS.EXTRACT_SOLUTION,
-    includeMetadata: Config.DEFAULTS.INCLUDE_METADATA
+    includeMetadata: Config.DEFAULTS.INCLUDE_METADATA,
+    extractChats: Config.DEFAULTS.EXTRACT_CHATS
   });
 
   const data = {
@@ -166,7 +167,8 @@ async function extractContent() {
     expectedPoints: [],
     multipleChoice: null,
     freeText: null,
-    cli: null
+    cli: null,
+    chats: []
   };
 
   // Extract viewer content (left side)
@@ -242,12 +244,124 @@ async function extractContent() {
   }
 
   // Validate extracted data
+  if (settings.extractChats) {
+    await extractChats(data);
+  }
+
   const validation = Validator.validateContent(data);
   if (!validation.valid) {
     Logger.warn('Validation warnings:', validation.errors);
   }
 
   return data;
+}
+
+// Extract chat conversations
+async function extractChats(data) {
+  Logger.emoji(Config.LOG.EXTRACTING_CHATS);
+
+  const chats = [];
+
+  const chatButtons = Array.from(document.querySelectorAll(Config.SELECTORS.CHAT_BUTTONS))
+    .filter(btn => {
+      const text = btn.textContent.trim();
+      return text &&
+        !text.includes('+') &&
+        !btn.disabled &&
+        (text.includes('Explanation') ||
+          text.includes('Takeaway') ||
+          text.includes('Hint') ||
+          text.includes('Example') ||
+          text.includes('Help'));
+    });
+
+  if (chatButtons.length === 0) {
+    Logger.debug('No chat conversations found');
+    return;
+  }
+
+  Logger.debug(`Found ${chatButtons.length} chat button(s)`);
+
+  const chatContainer = document.querySelector('.vl-parent');
+  if (!chatContainer) {
+    Logger.debug('Chat container not found');
+    return;
+  }
+
+  const conversationBlocks = chatContainer.querySelectorAll('.pb-4');
+
+  const activeButtons = new Set();
+  chatButtons.forEach(btn => {
+    const label = btn.textContent.trim();
+    const isActive = btn.classList.contains('border-gray-200') ||
+      btn.classList.contains('text-gray-200');
+    if (isActive) {
+      activeButtons.add(label);
+    }
+  });
+
+  Logger.debug(`Active chat buttons: ${Array.from(activeButtons).join(', ')}`);
+
+  for (const block of conversationBlocks) {
+    const messageContainers = block.querySelectorAll('.grid.grid-cols-\\[50px_minmax\\(0\\,1fr\\)\\]');
+
+    if (messageContainers.length === 0) continue;
+
+    const messages = [];
+
+    for (const container of messageContainers) {
+      const profileImg = container.querySelector('img[alt="Boots"]');
+      const isBoots = profileImg !== null;
+
+      const viewer = container.querySelector('.viewer');
+      if (!viewer) continue;
+
+      const clonedViewer = viewer.cloneNode(true);
+
+      clonedViewer.querySelectorAll('button').forEach(btn => btn.remove());
+      clonedViewer.querySelectorAll('audio').forEach(audio => audio.remove());
+
+      const codeBlocks = HTMLParser.extractCodeBlocksInOrder(clonedViewer);
+      let messageText = HTMLParser.cleanText(clonedViewer.textContent);
+      messageText = HTMLParser.insertCodeBlocks(messageText, codeBlocks);
+
+      if (messageText.includes('Need help?') && messageText.includes('assist without penalty')) {
+        continue;
+      }
+
+      if (messageText && messageText.trim()) {
+        messages.push({
+          speaker: isBoots ? Config.SPEAKERS.BOOTS : Config.SPEAKERS.USER,
+          content: messageText,
+          hasCode: codeBlocks.length > 0
+        });
+      }
+    }
+
+    if (messages.length > 0) {
+      let chatTitle = 'Chat Conversation';
+
+      if (activeButtons.size === 1) {
+        chatTitle = Array.from(activeButtons)[0];
+      } else if (activeButtons.size > 1) {
+        const activeArray = Array.from(activeButtons);
+        const chatIndex = chats.length;
+        if (chatIndex < activeArray.length) {
+          chatTitle = activeArray[chatIndex];
+        }
+      }
+
+      chats.push({
+        title: chatTitle,
+        messages: messages
+      });
+
+      Logger.extraction(`Chat: ${chatTitle}`, { messages: messages.length });
+    }
+  }
+
+  data.chats = chats;
+  Logger.extraction(`Extracted ${chats.length} chat conversation(s)`);
 }
 
 // Extract CLI commands and checks
@@ -633,7 +747,7 @@ async function extractAllTabs(data) {
   const initialTab = tabButtons.find(b => b.getAttribute('aria-selected') === 'true') || tabButtons[0];
 
   if (tabButtons.length === 0) {
-    Logger.debug('No code editor tabs found (this may be a text-only exercise)');
+    Logger.debug('No code editor tabs found');
     return;
   }
 
@@ -718,7 +832,7 @@ async function extractSolution(data) {
     if (mergeView) {
       const editors = mergeView.querySelectorAll('.cm-mergeViewEditor .cm-editor');
       if (editors.length >= 2) {
-        console.log('\n💡 Solution view detected — capturing right-side editor...');
+        console.log('\n💡 Solution view detected – capturing right-side editor...');
         const rightEditor = editors[1];
         const solutionCode = await extractCodeFromEditor(rightEditor);
 

@@ -48,6 +48,13 @@ const Config = {
     CLI_CHECKS_LIST: 'ol.list-inside.list-decimal',
     CLI_CHECK_COMMAND: 'span.font-mono.font-bold',
     CLI_CHECK_EXPECTED: 'ul.ml-4.list-inside.list-disc',
+
+    // Chat specific
+    CHAT_BUTTONS: 'button.rounded-full.border.px-2\\.5.py-1',
+    CHAT_CONTAINER: '.pb-4',
+    CHAT_MESSAGE_GRID: '.grid.grid-cols-\\[50px_minmax\\(0\\,1fr\\)\\]',
+    CHAT_VIEWER: '.viewer',
+    CHAT_PROFILE_IMG: 'img[alt="Boots"]',
   },
 
   // URL patterns
@@ -293,6 +300,7 @@ const Config = {
     FORMAT: 'markdown',
     EXTRACT_SOLUTION: true,
     INCLUDE_METADATA: true,
+    EXTRACT_CHATS: true,
     NOTION_ENABLED: false,
     LANGUAGE: 'unknown',
   },
@@ -350,10 +358,11 @@ const Config = {
     EXTRACTING_MULTIPLE_CHOICE: '📋 Extracting multiple-choice question...',
     EXTRACTING_FREE_TEXT: '✏️ Extracting free-text question...',
     EXTRACTING_CLI: '💻 Extracting CLI commands...',
+    EXTRACTING_CHATS: '💬 Extracting chat conversations...',
     LOOKING_FOR_SOLUTION: '\n💡 Looking for interview solution...',
     PROCESSING_TAB: '\n📂 Processing tab #',
     RETURNING_TO_TAB: '\n🔙 Returning to initial tab...',
-    SOLUTION_VIEW_DETECTED: '\n💡 Solution view detected — capturing right-side editor...',
+    SOLUTION_VIEW_DETECTED: '\n💡 Solution view detected – capturing right-side editor...',
   },
 
   // Helper functions
