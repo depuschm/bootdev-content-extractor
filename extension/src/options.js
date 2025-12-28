@@ -31,17 +31,11 @@ async function loadSettings() {
   document.getElementById('notionEnabled').checked = settings.notionEnabled;
   document.getElementById('notionToken').value = settings.notionToken;
 
-  // Load databases - filter out old default types that shouldn't exist anymore
-  const oldDefaultTypes = ['yes-no', 'multiple-choice', 'free-text'];
+  // Load databases
   const loadedDatabases = settings.databases || [];
 
-  // Check if we have the old defaults with empty IDs - if so, use new defaults
-  const hasOldEmptyDefaults = oldDefaultTypes.some(type =>
-    loadedDatabases.some(db => db.type === type && !db.id)
-  );
-
-  if (hasOldEmptyDefaults && loadedDatabases.every(db => !db.id)) {
-    // User has old empty defaults, replace with new defaults
+  // If user has empty defaults, use new defaults
+  if (loadedDatabases.every(db => !db.id)) {
     databases = [...DEFAULT_DATABASE_TYPES];
   } else {
     // Keep user's configuration
@@ -205,7 +199,7 @@ function confirmRestoreDefaults() {
 
   // Show feedback
   const status = document.getElementById('status');
-  status.textContent = '✔ Default database types restored! Don\'t forget to save.';
+  status.textContent = '✓ Default database types restored! Don\'t forget to save.';
   status.className = 'status';
   status.style.backgroundColor = 'rgba(88, 101, 242, 0.1)';
   status.style.color = '#5865f2';
@@ -260,7 +254,7 @@ async function saveSettings() {
 
     // Show success message
     const status = document.getElementById('status');
-    status.textContent = '✔ Settings saved successfully!';
+    status.textContent = '✓ Settings saved successfully!';
     status.className = 'status success';
     status.style.display = 'block';
     // Reset any custom styles from other operations
@@ -354,7 +348,7 @@ async function testConnection() {
         .join('<br>');
 
       status.innerHTML = `
-        <strong>✔ All ${successful.length} database(s) connected successfully!</strong><br>
+        <strong>✓ All ${successful.length} database(s) connected successfully!</strong><br>
         <small style="opacity: 0.8; margin-top: 8px; display: block;">
           ${dbSummary}
         </small>
@@ -365,7 +359,7 @@ async function testConnection() {
         <strong>⚠️ Partial Success:</strong><br>
         ${successful.length} connected, ${failed.length} failed<br>
         <small style="opacity: 0.8; margin-top: 8px; display: block;">
-          ✔ Connected: ${successful.map(s => s.type).join(', ')}<br>
+          ✓ Connected: ${successful.map(s => s.type).join(', ')}<br>
           ✗ Failed: ${failed.map(f => f.type).join(', ')}
         </small>
       `;

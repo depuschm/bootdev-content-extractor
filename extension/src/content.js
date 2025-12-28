@@ -76,7 +76,7 @@ async function extractCodeFromEditor(editor, config = {}) {
   const reportedMax = Math.max(0, (scrollEl.scrollHeight || 0) - (scrollEl.clientHeight || 0));
   const maxScroll = Math.max(reportedMax, forcedOvershoot);
 
-  Logger.debug(`    ↑ Scrolling: clientHeight=${scrollEl.clientHeight}, maxScroll=${maxScroll}`);
+  Logger.debug(`    ↓ Scrolling: clientHeight=${scrollEl.clientHeight}, maxScroll=${maxScroll}`);
 
   // Helper to capture rendered lines
   const captureLines = () => {

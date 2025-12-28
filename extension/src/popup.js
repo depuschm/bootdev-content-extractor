@@ -211,7 +211,7 @@ function formatData(data, format) {
       markdown += `## Question\n\n${data.multipleChoice.question}\n\n`;
       markdown += `## Options\n\n`;
       data.multipleChoice.options.forEach(option => {
-        const marker = option.isSelected ? '✔' : ' ';
+        const marker = option.isSelected ? '✓' : ' ';
         markdown += `${option.index}. [${marker}] ${option.text}\n`;
       });
       markdown += '\n';
@@ -541,7 +541,7 @@ async function handleNotionExport() {
 
     // Show success
     document.getElementById('statusText').textContent = Config.MESSAGES.NOTION_SUCCESS;
-    notionBtn.textContent = '✔ Sent to Notion!';
+    notionBtn.textContent = '✓ Sent to Notion!';
 
     setTimeout(() => {
       notionBtn.textContent = originalText;
