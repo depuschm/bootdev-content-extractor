@@ -243,11 +243,12 @@ async function extractContent() {
     }
   }
 
-  // Validate extracted data
+  // Extract chats if enabled
   if (settings.extractChats) {
     await extractChats(data);
   }
 
+  // Validate extracted data
   const validation = Validator.validateContent(data);
   if (!validation.valid) {
     Logger.warn('Validation warnings:', validation.errors);
@@ -256,23 +257,20 @@ async function extractContent() {
   return data;
 }
 
-// Extract chat conversations
+// Extract chat conversations by opening each chat button and extracting content
 async function extractChats(data) {
   Logger.emoji(Config.LOG.EXTRACTING_CHATS);
 
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
   const chats = [];
 
+  // Find all chat buttons (excluding the "New Chat" button with +)
   const chatButtons = Array.from(document.querySelectorAll(Config.SELECTORS.CHAT_BUTTONS))
     .filter(btn => {
       const text = btn.textContent.trim();
       return text &&
         !text.includes('+') &&
-        !btn.disabled &&
-        (text.includes('Explanation') ||
-          text.includes('Takeaway') ||
-          text.includes('Hint') ||
-          text.includes('Example') ||
-          text.includes('Help'));
+        !btn.disabled;
     });
 
   if (chatButtons.length === 0) {
@@ -280,7 +278,7 @@ async function extractChats(data) {
     return;
   }
 
-  Logger.debug(`Found ${chatButtons.length} chat button(s)`);
+  Logger.debug(`Found ${chatButtons.length} chat button(s) to extract`);
 
   const chatContainer = document.querySelector('.vl-parent');
   if (!chatContainer) {
@@ -288,75 +286,91 @@ async function extractChats(data) {
     return;
   }
 
-  const conversationBlocks = chatContainer.querySelectorAll('.pb-4');
+  // Iterate through each chat button and extract its content
+  for (let i = 0; i < chatButtons.length; i++) {
+    const btn = chatButtons[i];
+    const chatTitle = btn.textContent.trim();
 
-  const activeButtons = new Set();
-  chatButtons.forEach(btn => {
-    const label = btn.textContent.trim();
-    const isActive = btn.classList.contains('border-gray-200') ||
+    Logger.debug(`Opening chat ${i + 1}/${chatButtons.length}: "${chatTitle}"`);
+
+    // Check if chat is already open
+    const isAlreadyOpen = btn.classList.contains('border-gray-200') &&
       btn.classList.contains('text-gray-200');
-    if (isActive) {
-      activeButtons.add(label);
-    }
-  });
 
-  Logger.debug(`Active chat buttons: ${Array.from(activeButtons).join(', ')}`);
+    if (!isAlreadyOpen) {
+      // Click the button to open this chat
+      btn.click();
 
-  for (const block of conversationBlocks) {
-    const messageContainers = block.querySelectorAll('.grid.grid-cols-\\[50px_minmax\\(0\\,1fr\\)\\]');
-
-    if (messageContainers.length === 0) continue;
-
-    const messages = [];
-
-    for (const container of messageContainers) {
-      const profileImg = container.querySelector('img[alt="Boots"]');
-      const isBoots = profileImg !== null;
-
-      const viewer = container.querySelector('.viewer');
-      if (!viewer) continue;
-
-      const clonedViewer = viewer.cloneNode(true);
-
-      clonedViewer.querySelectorAll('button').forEach(btn => btn.remove());
-      clonedViewer.querySelectorAll('audio').forEach(audio => audio.remove());
-
-      const codeBlocks = HTMLParser.extractCodeBlocksInOrder(clonedViewer);
-      let messageText = HTMLParser.cleanText(clonedViewer.textContent);
-      messageText = HTMLParser.insertCodeBlocks(messageText, codeBlocks);
-
-      if (messageText.includes('Need help?') && messageText.includes('assist without penalty')) {
-        continue;
-      }
-
-      if (messageText && messageText.trim()) {
-        messages.push({
-          speaker: isBoots ? Config.SPEAKERS.BOOTS : Config.SPEAKERS.USER,
-          content: messageText,
-          hasCode: codeBlocks.length > 0
-        });
-      }
+      // Wait for chat content to load
+      await sleep(500);
     }
 
-    if (messages.length > 0) {
-      let chatTitle = 'Chat Conversation';
+    // Extract the conversation from this chat
+    const conversationBlocks = chatContainer.querySelectorAll('.pb-4');
 
-      if (activeButtons.size === 1) {
-        chatTitle = Array.from(activeButtons)[0];
-      } else if (activeButtons.size > 1) {
-        const activeArray = Array.from(activeButtons);
-        const chatIndex = chats.length;
-        if (chatIndex < activeArray.length) {
-          chatTitle = activeArray[chatIndex];
+    // Find the conversation block that corresponds to this chat
+    // The conversation appears after clicking, so we look for the most recent one
+    for (const block of conversationBlocks) {
+      const messageContainers = block.querySelectorAll('.grid.grid-cols-\\[50px_minmax\\(0\\,1fr\\)\\]');
+
+      if (messageContainers.length === 0) continue;
+
+      const messages = [];
+      let messageIndex = 0;
+
+      for (const container of messageContainers) {
+        const viewer = container.querySelector('.viewer');
+        if (!viewer) continue;
+
+        const clonedViewer = viewer.cloneNode(true);
+
+        clonedViewer.querySelectorAll('button').forEach(btn => btn.remove());
+        clonedViewer.querySelectorAll('audio').forEach(audio => audio.remove());
+
+        const codeBlocks = HTMLParser.extractCodeBlocksInOrder(clonedViewer);
+        let messageText = HTMLParser.cleanText(clonedViewer.textContent);
+        messageText = HTMLParser.insertCodeBlocks(messageText, codeBlocks);
+
+        // Skip the initial "Need help?" message
+        if (messageText.includes('Need help?') && messageText.includes('assist without penalty')) {
+          continue;
+        }
+
+        if (messageText && messageText.trim()) {
+          // Alternate speakers: first message is USER, then BOOTS, then USER, etc.
+          const speaker = messageIndex % 2 === 0 ? Config.SPEAKERS.USER : Config.SPEAKERS.BOOTS;
+
+          messages.push({
+            speaker: speaker,
+            content: messageText,
+            hasCode: codeBlocks.length > 0
+          });
+
+          messageIndex++;
         }
       }
 
-      chats.push({
-        title: chatTitle,
-        messages: messages
-      });
+      // Only add this chat if it has actual conversation messages
+      if (messages.length > 0) {
+        // Check if we already extracted this chat (avoid duplicates)
+        const isDuplicate = chats.some(chat =>
+          chat.title === chatTitle &&
+          chat.messages.length === messages.length &&
+          chat.messages[0]?.content === messages[0]?.content
+        );
 
-      Logger.extraction(`Chat: ${chatTitle}`, { messages: messages.length });
+        if (!isDuplicate) {
+          chats.push({
+            title: chatTitle,
+            messages: messages
+          });
+
+          Logger.extraction(`Chat: ${chatTitle}`, { messages: messages.length });
+
+          // Only process the first valid conversation block for this chat
+          break;
+        }
+      }
     }
   }
 
@@ -832,7 +846,7 @@ async function extractSolution(data) {
     if (mergeView) {
       const editors = mergeView.querySelectorAll('.cm-mergeViewEditor .cm-editor');
       if (editors.length >= 2) {
-        console.log('\n💡 Solution view detected – capturing right-side editor...');
+        console.log('\n💡 Solution view detected — capturing right-side editor...');
         const rightEditor = editors[1];
         const solutionCode = await extractCodeFromEditor(rightEditor);
 
