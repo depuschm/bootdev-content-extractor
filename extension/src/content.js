@@ -195,7 +195,7 @@ async function extractContent() {
     // This is a multiple-choice exercise
     data.exerciseType = Config.EXERCISE_TYPES.MULTIPLE_CHOICE;
     Logger.emoji(Config.LOG.DETECTED_MULTIPLE_CHOICE);
-    await extractMultipleChoice(data);
+    await extractMultipleChoice(data, settings);
   } else if (hasInterview && !hasCodeEditor) {
     // This is an interview exercise
     data.exerciseType = Config.EXERCISE_TYPES.INTERVIEW;
@@ -558,7 +558,7 @@ async function extractFreeTextSolution(data) {
 }
 
 // Extract multiple-choice questions and options
-async function extractMultipleChoice(data) {
+async function extractMultipleChoice(data, settings) {
   Logger.emoji(Config.LOG.EXTRACTING_MULTIPLE_CHOICE);
 
   const mcqData = {
@@ -585,16 +585,17 @@ async function extractMultipleChoice(data) {
     mcqData.options.push({
       index: index + 1,
       text: optionText,
-      isSelected: isSelected
+      // Only include selection status if extractSolution is enabled
+      isSelected: settings.extractSolution ? isSelected : false
     });
 
-    if (isSelected) {
+    if (isSelected && settings.extractSolution) {
       mcqData.selectedAnswer = index + 1;
     }
 
     Logger.extraction(`Option ${index + 1}`, {
       text: optionText.substring(0, 50),
-      selected: isSelected
+      selected: settings.extractSolution ? isSelected : 'hidden'
     });
   });
 
