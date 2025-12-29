@@ -190,7 +190,7 @@ async function extractContent() {
     // This is a free-text exercise
     data.exerciseType = Config.EXERCISE_TYPES.FREE_TEXT;
     Logger.emoji(Config.LOG.DETECTED_FREE_TEXT);
-    await extractFreeText(data);
+    await extractFreeText(data, settings);
   } else if (hasMultipleChoice) {
     // This is a multiple-choice exercise
     data.exerciseType = Config.EXERCISE_TYPES.MULTIPLE_CHOICE;
@@ -462,7 +462,7 @@ async function extractCLI(data) {
 }
 
 // Extract free-text questions and checks
-async function extractFreeText(data) {
+async function extractFreeText(data, settings) {
   Logger.emoji(Config.LOG.EXTRACTING_FREE_TEXT);
 
   const freeTextData = {
@@ -478,51 +478,56 @@ async function extractFreeText(data) {
     Logger.extraction('User Answer', { chars: freeTextData.userAnswer.length });
   }
 
-  // Check if checks are visible
-  const toggleButton = document.querySelector(Config.SELECTORS.FREE_TEXT_TOGGLE);
-  if (toggleButton) {
-    const buttonText = toggleButton.textContent.trim();
-    freeTextData.checksVisible = buttonText.includes('Hide');
-    Logger.extraction('Checks Visibility', { visible: freeTextData.checksVisible });
-  }
-
-  // Extract checks if visible
-  if (freeTextData.checksVisible) {
-    const checksList = document.querySelector(Config.SELECTORS.FREE_TEXT_CHECKS);
-    if (checksList) {
-      const checkItems = checksList.querySelectorAll('li');
-      checkItems.forEach((item, index) => {
-        // Get the check description (first text)
-        const descSpan = item.querySelector('span.text-lg');
-        const description = descSpan ? descSpan.textContent.trim() : '';
-
-        // Get expected values (if any)
-        const expectedValues = [];
-        const nestedList = item.querySelector('ol.ml-6');
-        if (nestedList) {
-          const nestedItems = nestedList.querySelectorAll('li');
-          nestedItems.forEach(nestedItem => {
-            const pre = nestedItem.querySelector('pre');
-            if (pre) {
-              expectedValues.push(pre.textContent.trim());
-            }
-          });
-        }
-
-        if (description) {
-          freeTextData.checks.push({
-            index: index + 1,
-            description: description,
-            expectedValues: expectedValues
-          });
-
-          Logger.extraction(`Check ${index + 1}`, {
-            desc: description.substring(0, 50),
-            values: expectedValues.length
-          });
-        }
-      });
+  // Only extract checks if extractSolution is enabled
+  if (settings.extractSolution) {
+    // Check if checks are visible
+    const toggleButton = document.querySelector(Config.SELECTORS.FREE_TEXT_TOGGLE);
+    if (toggleButton) {
+      const buttonText = toggleButton.textContent.trim();
+      freeTextData.checksVisible = buttonText.includes('Hide');
+      Logger.extraction('Checks Visibility', { visible: freeTextData.checksVisible });
     }
+
+    // Extract checks if visible
+    if (freeTextData.checksVisible) {
+      const checksList = document.querySelector(Config.SELECTORS.FREE_TEXT_CHECKS);
+      if (checksList) {
+        const checkItems = checksList.querySelectorAll('li');
+        checkItems.forEach((item, index) => {
+          // Get the check description (first text)
+          const descSpan = item.querySelector('span.text-lg');
+          const description = descSpan ? descSpan.textContent.trim() : '';
+
+          // Get expected values (if any)
+          const expectedValues = [];
+          const nestedList = item.querySelector('ol.ml-6');
+          if (nestedList) {
+            const nestedItems = nestedList.querySelectorAll('li');
+            nestedItems.forEach(nestedItem => {
+              const pre = nestedItem.querySelector('pre');
+              if (pre) {
+                expectedValues.push(pre.textContent.trim());
+              }
+            });
+          }
+
+          if (description) {
+            freeTextData.checks.push({
+              index: index + 1,
+              description: description,
+              expectedValues: expectedValues
+            });
+
+            Logger.extraction(`Check ${index + 1}`, {
+              desc: description.substring(0, 50),
+              values: expectedValues.length
+            });
+          }
+        });
+      }
+    }
+  } else {
+    Logger.debug('Skipping validation checks extraction (extractSolution is disabled)');
   }
 
   data.freeText = freeTextData;
