@@ -300,6 +300,7 @@ async function extractChats(data) {
     if (!isAlreadyOpen) {
       // Click the button to open this chat
       btn.click();
+      await sleep(300); // Wait for chat to load
     }
 
     // Extract the conversation from this chat
@@ -319,14 +320,17 @@ async function extractChats(data) {
         const viewer = container.querySelector('.viewer');
         if (!viewer) continue;
 
+        // Clone the viewer to avoid modifying the original DOM
         const clonedViewer = viewer.cloneNode(true);
 
+        // Remove buttons and audio elements
         clonedViewer.querySelectorAll('button').forEach(btn => btn.remove());
         clonedViewer.querySelectorAll('audio').forEach(audio => audio.remove());
 
-        const codeBlocks = HTMLParser.extractCodeBlocksInOrder(clonedViewer);
-        let messageText = HTMLParser.cleanText(clonedViewer.textContent);
-        messageText = HTMLParser.insertCodeBlocks(messageText, codeBlocks);
+        // Use parseToMarkdown to get properly formatted markdown with lists, code blocks, etc.
+        const messageText = HTMLParser.parseToMarkdown(clonedViewer, {
+          defaultLanguage: data.language || Config.DEFAULTS.LANGUAGE
+        });
 
         // Skip the initial "Need help?" message
         if (messageText.includes('Need help?') && messageText.includes('assist without penalty')) {
@@ -337,10 +341,13 @@ async function extractChats(data) {
           // Alternate speakers: first message is USER, then BOOTS, then USER, etc.
           const speaker = messageIndex % 2 === 0 ? Config.SPEAKERS.USER : Config.SPEAKERS.BOOTS;
 
+          // Check if message has code blocks
+          const hasCode = messageText.includes('```');
+
           messages.push({
             speaker: speaker,
             content: messageText,
-            hasCode: codeBlocks.length > 0
+            hasCode: hasCode
           });
 
           messageIndex++;

@@ -101,6 +101,16 @@ const HTMLParser = {
           if (text) {
             mainText += (mainText ? ' ' : '') + `\`${text}\``;
           }
+        } else if (tagName === 'strong' || tagName === 'b') {
+          const text = child.textContent.trim();
+          if (text) {
+            mainText += (mainText ? ' ' : '') + `**${text}**`;
+          }
+        } else if (tagName === 'em' || tagName === 'i') {
+          const text = child.textContent.trim();
+          if (text) {
+            mainText += (mainText ? ' ' : '') + `*${text}*`;
+          }
         } else {
           const text = child.textContent.trim();
           if (text) {
@@ -164,7 +174,7 @@ const HTMLParser = {
 
         // Also add a clickable link that works
         const fallbackLink = document.createElement('p');
-        fallbackLink.innerHTML = `<em>📹 <a href="${src}" target="_blank" rel="noopener noreferrer">Open video in new tab</a></em>`;
+        fallbackLink.innerHTML = `<em>🔹 <a href="${src}" target="_blank" rel="noopener noreferrer">Open video in new tab</a></em>`;
 
         video.parentNode.replaceChild(videoEmbed, video);
         videoEmbed.parentNode.insertBefore(fallbackLink, videoEmbed.nextSibling);
@@ -211,7 +221,9 @@ const HTMLParser = {
             lines.push('');
           }
         } else if (text) {
-          lines.push(text);
+          // Process inline formatting
+          let formattedText = this.processInlineFormatting(element);
+          lines.push(formattedText);
           lines.push('');
         }
         continue;
@@ -367,6 +379,47 @@ const HTMLParser = {
       .join('\n')
       .replace(/\n{3,}/g, '\n\n')
       .trim();
+  },
+
+  /**
+   * Process inline formatting (bold, italic, code) within an element
+   * @param {HTMLElement} element - The element to process
+   * @returns {string} Formatted text with markdown
+   */
+  processInlineFormatting(element) {
+    let result = '';
+
+    const processNode = (node) => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        return node.textContent;
+      } else if (node.nodeType === Node.ELEMENT_NODE) {
+        const tagName = node.tagName.toLowerCase();
+        const content = Array.from(node.childNodes).map(processNode).join('');
+
+        switch (tagName) {
+          case 'strong':
+          case 'b':
+            return `**${content}**`;
+          case 'em':
+          case 'i':
+            return `*${content}*`;
+          case 'code':
+            return `\`${content}\``;
+          case 'a':
+            const href = node.getAttribute('href');
+            return href ? `[${content}](${href})` : content;
+          default:
+            return content;
+        }
+      }
+      return '';
+    };
+
+    for (const child of element.childNodes) {
+      result += processNode(child);
+    }
+
+    return result;
   },
 
   /**

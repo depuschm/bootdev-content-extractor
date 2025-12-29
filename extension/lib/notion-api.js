@@ -5,6 +5,10 @@ const NotionAPI = {
   baseURL: 'https://api.notion.com/v1',
   version: '2022-06-28',
 
+  // Notion API limits
+  MAX_RICH_TEXT_LENGTH: 2000,  // Maximum characters per rich_text item
+  MAX_TEXT_BLOCK_LENGTH: 2000,  // Maximum characters per text block
+
   // Create a new page in a database
   async createPage(token, databaseId, content) {
     const url = `${this.baseURL}/pages`;
@@ -325,7 +329,7 @@ const NotionAPI = {
           }
         });
 
-        const chunks = this.splitIntoChunks(content.freeText.userAnswer, 1900);
+        const chunks = this.splitIntoChunks(content.freeText.userAnswer, this.MAX_TEXT_BLOCK_LENGTH);
         chunks.forEach(chunk => {
           blocks.push({
             object: 'block',
@@ -406,8 +410,8 @@ const NotionAPI = {
                 }
               });
             } else {
-              // Split long text into chunks (Notion has 2000 char limit per rich_text)
-              const chunks = this.splitIntoChunks(part.content, 1900);
+              // Split long text into chunks (Notion has character limit per rich_text)
+              const chunks = this.splitIntoChunks(part.content, this.MAX_TEXT_BLOCK_LENGTH);
               chunks.forEach(chunk => {
                 blocks.push({
                   object: 'block',
@@ -450,7 +454,7 @@ const NotionAPI = {
           }
         });
 
-        const chunks = this.splitIntoChunks(content.solution, 1900);
+        const chunks = this.splitIntoChunks(content.solution, this.MAX_TEXT_BLOCK_LENGTH);
         chunks.forEach(chunk => {
           blocks.push({
             object: 'block',
@@ -537,54 +541,23 @@ const NotionAPI = {
 
         // Add each message in the chat
         chat.messages.forEach(msg => {
-          // Determine emoji and color based on speaker
+          // Determine emoji based on speaker
           const emoji = msg.speaker === Config.SPEAKERS.BOOTS ? '🤖' : '👤';
-          const color = msg.speaker === Config.SPEAKERS.BOOTS ? 'blue_background' : 'gray_background';
 
-          // Parse message content to separate text and code blocks
-          const parts = this.parseMessageContent(msg.content);
-
-          // Create a callout for each message with speaker identification
+          // Add speaker as a heading with emoji
           blocks.push({
             object: 'block',
-            type: 'callout',
-            callout: {
+            type: 'heading_3',
+            heading_3: {
               rich_text: [
-                {
-                  type: 'text',
-                  text: { content: `${msg.speaker}` },
-                  annotations: { bold: true }
-                }
-              ],
-              icon: { type: 'emoji', emoji: emoji },
-              color: color
+                { type: 'text', text: { content: `${emoji} ${msg.speaker}` } }
+              ]
             }
           });
 
-          // Add message content parts
-          parts.forEach(part => {
-            if (part.type === 'code') {
-              blocks.push({
-                object: 'block',
-                type: 'code',
-                code: {
-                  rich_text: [{ type: 'text', text: { content: part.content } }],
-                  language: this.mapLanguage(part.language || 'plain text')
-                }
-              });
-            } else {
-              const chunks = this.splitIntoChunks(part.content, 1900);
-              chunks.forEach(chunk => {
-                blocks.push({
-                  object: 'block',
-                  type: 'paragraph',
-                  paragraph: {
-                    rich_text: [{ type: 'text', text: { content: chunk } }]
-                  }
-                });
-              });
-            }
-          });
+          // Parse message content as markdown to get proper formatting
+          const messageBlocks = this.parseMarkdownToBlocks(msg.content, content.language);
+          blocks.push(...messageBlocks);
         });
 
         // Add divider between chats (except after the last one)
@@ -711,7 +684,7 @@ const NotionAPI = {
                     object: 'block',
                     type: 'paragraph',
                     paragraph: {
-                      rich_text: [{ type: 'text', text: { content: calloutText } }]
+                      rich_text: this.parseRichText(calloutText)
                     }
                   }
                 ]
@@ -723,7 +696,7 @@ const NotionAPI = {
               object: 'block',
               type: 'callout',
               callout: {
-                rich_text: [{ type: 'text', text: { content: calloutText } }],
+                rich_text: this.parseRichText(calloutText),
                 color: 'gray_background',
                 icon: {
                   type: 'emoji',
@@ -744,7 +717,7 @@ const NotionAPI = {
           object: 'block',
           type: 'heading_2',
           heading_2: {
-            rich_text: [{ type: 'text', text: { content: line.substring(3).trim() } }]
+            rich_text: this.parseRichText(line.substring(3).trim())
           }
         });
         i++;
@@ -756,7 +729,7 @@ const NotionAPI = {
           object: 'block',
           type: 'heading_3',
           heading_3: {
-            rich_text: [{ type: 'text', text: { content: line.substring(4).trim() } }]
+            rich_text: this.parseRichText(line.substring(4).trim())
           }
         });
         i++;
@@ -818,7 +791,7 @@ const NotionAPI = {
           object: 'block',
           type: 'quote',
           quote: {
-            rich_text: [{ type: 'text', text: { content: quoteLines.join('\n') } }]
+            rich_text: this.parseRichText(quoteLines.join('\n'))
           }
         });
         continue;
@@ -837,7 +810,7 @@ const NotionAPI = {
             object: 'block',
             type: 'bulleted_list_item',
             bulleted_list_item: {
-              rich_text: [{ type: 'text', text: { content: item } }]
+              rich_text: this.parseRichText(item)
             }
           });
         });
@@ -857,28 +830,154 @@ const NotionAPI = {
             object: 'block',
             type: 'numbered_list_item',
             numbered_list_item: {
-              rich_text: [{ type: 'text', text: { content: item } }]
+              rich_text: this.parseRichText(item)
             }
           });
         });
         continue;
       }
 
-      // Regular paragraphs
-      const chunks = this.splitIntoChunks(line, 1900);
-      chunks.forEach(chunk => {
-        blocks.push({
-          object: 'block',
-          type: 'paragraph',
-          paragraph: {
-            rich_text: [{ type: 'text', text: { content: chunk } }]
-          }
-        });
+      // Regular paragraphs - now with rich text parsing
+      blocks.push({
+        object: 'block',
+        type: 'paragraph',
+        paragraph: {
+          rich_text: this.parseRichText(line)
+        }
       });
       i++;
     }
 
     return blocks;
+  },
+
+  // Parse markdown text into Notion rich_text format with proper annotations
+  parseRichText(text) {
+    if (!text || !text.trim()) {
+      return [{ type: 'text', text: { content: '' } }];
+    }
+
+    const richText = [];
+    let currentPos = 0;
+
+    // Regex patterns for markdown formatting (order matters!)
+    const patterns = [
+      { regex: /\*\*\*(.+?)\*\*\*/g, type: 'bold_italic' },  // ***text*** - bold + italic
+      { regex: /\*\*(.+?)\*\*/g, type: 'bold' },              // **text** - bold
+      { regex: /\*(.+?)\*/g, type: 'italic' },                // *text* - italic
+      { regex: /`(.+?)`/g, type: 'code' },                    // `text` - code
+      { regex: /\[(.+?)\]\((.+?)\)/g, type: 'link' }          // [text](url) - link
+    ];
+
+    // Find all matches for all patterns
+    const allMatches = [];
+    patterns.forEach(pattern => {
+      let match;
+      const regex = new RegExp(pattern.regex.source, 'g');
+      while ((match = regex.exec(text)) !== null) {
+        allMatches.push({
+          type: pattern.type,
+          start: match.index,
+          end: regex.lastIndex,
+          fullMatch: match[0],
+          content: match[1],
+          url: match[2] // For links
+        });
+      }
+    });
+
+    // Sort matches by position
+    allMatches.sort((a, b) => a.start - b.start);
+
+    // Filter out overlapping matches (keep the first one)
+    const validMatches = [];
+    let lastEnd = -1;
+    allMatches.forEach(match => {
+      if (match.start >= lastEnd) {
+        validMatches.push(match);
+        lastEnd = match.end;
+      }
+    });
+
+    // Build rich text array
+    validMatches.forEach(match => {
+      // Add plain text before this match
+      if (match.start > currentPos) {
+        const plainText = text.substring(currentPos, match.start);
+        if (plainText) {
+          richText.push({
+            type: 'text',
+            text: { content: plainText }
+          });
+        }
+      }
+
+      // Add formatted text
+      const annotations = {};
+      if (match.type === 'bold' || match.type === 'bold_italic') {
+        annotations.bold = true;
+      }
+      if (match.type === 'italic' || match.type === 'bold_italic') {
+        annotations.italic = true;
+      }
+      if (match.type === 'code') {
+        annotations.code = true;
+      }
+
+      if (match.type === 'link') {
+        richText.push({
+          type: 'text',
+          text: {
+            content: match.content,
+            link: { url: match.url }
+          }
+        });
+      } else {
+        richText.push({
+          type: 'text',
+          text: { content: match.content },
+          annotations: annotations
+        });
+      }
+
+      currentPos = match.end;
+    });
+
+    // Add remaining plain text
+    if (currentPos < text.length) {
+      const plainText = text.substring(currentPos);
+      if (plainText) {
+        richText.push({
+          type: 'text',
+          text: { content: plainText }
+        });
+      }
+    }
+
+    // If no formatting was found, return plain text
+    if (richText.length === 0) {
+      return [{ type: 'text', text: { content: text } }];
+    }
+
+    // Split any rich text items that exceed the limit
+    const finalRichText = [];
+    richText.forEach(item => {
+      const content = item.text.content;
+      if (content.length <= this.MAX_RICH_TEXT_LENGTH) {
+        finalRichText.push(item);
+      } else {
+        // Split into chunks
+        const chunks = this.splitIntoChunks(content, this.MAX_RICH_TEXT_LENGTH);
+        chunks.forEach(chunk => {
+          finalRichText.push({
+            ...item,
+            text: { ...item.text, content: chunk }
+          });
+        });
+      }
+    });
+
+    return finalRichText;
   },
 
   // Parse message content to separate text and code blocks

@@ -292,7 +292,6 @@ const Config = {
 
     // Text formatting
     INDENT_SPACES: 3,  // Spaces per nesting level
-    MAX_NOTION_CHUNK: 1900,  // Notion has 2000 char limit, use 1900 for safety
   },
 
   // Default values
