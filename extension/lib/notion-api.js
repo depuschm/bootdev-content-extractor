@@ -513,6 +513,87 @@ const NotionAPI = {
       }
     }
 
+    // Add chat conversations if available
+    if (content.chats && content.chats.length > 0) {
+      blocks.push({ object: 'block', type: 'divider', divider: {} });
+
+      blocks.push({
+        object: 'block',
+        type: 'heading_2',
+        heading_2: {
+          rich_text: [{ type: 'text', text: { content: '💬 Chat Conversations' } }]
+        }
+      });
+
+      content.chats.forEach((chat, chatIndex) => {
+        // Add chat title
+        blocks.push({
+          object: 'block',
+          type: 'heading_3',
+          heading_3: {
+            rich_text: [{ type: 'text', text: { content: chat.title } }]
+          }
+        });
+
+        // Add each message in the chat
+        chat.messages.forEach(msg => {
+          // Determine emoji and color based on speaker
+          const emoji = msg.speaker === Config.SPEAKERS.BOOTS ? '🤖' : '👤';
+          const color = msg.speaker === Config.SPEAKERS.BOOTS ? 'blue_background' : 'gray_background';
+
+          // Parse message content to separate text and code blocks
+          const parts = this.parseMessageContent(msg.content);
+
+          // Create a callout for each message with speaker identification
+          blocks.push({
+            object: 'block',
+            type: 'callout',
+            callout: {
+              rich_text: [
+                {
+                  type: 'text',
+                  text: { content: `${msg.speaker}` },
+                  annotations: { bold: true }
+                }
+              ],
+              icon: { type: 'emoji', emoji: emoji },
+              color: color
+            }
+          });
+
+          // Add message content parts
+          parts.forEach(part => {
+            if (part.type === 'code') {
+              blocks.push({
+                object: 'block',
+                type: 'code',
+                code: {
+                  rich_text: [{ type: 'text', text: { content: part.content } }],
+                  language: this.mapLanguage(part.language || 'plain text')
+                }
+              });
+            } else {
+              const chunks = this.splitIntoChunks(part.content, 1900);
+              chunks.forEach(chunk => {
+                blocks.push({
+                  object: 'block',
+                  type: 'paragraph',
+                  paragraph: {
+                    rich_text: [{ type: 'text', text: { content: chunk } }]
+                  }
+                });
+              });
+            }
+          });
+        });
+
+        // Add divider between chats (except after the last one)
+        if (chatIndex < content.chats.length - 1) {
+          blocks.push({ object: 'block', type: 'divider', divider: {} });
+        }
+      });
+    }
+
     // Add footer
     blocks.push({ object: 'block', type: 'divider', divider: {} });
     blocks.push({
