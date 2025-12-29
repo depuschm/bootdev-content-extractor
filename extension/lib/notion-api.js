@@ -862,7 +862,7 @@ const NotionAPI = {
 
     // Regex patterns for markdown formatting (order matters!)
     const patterns = [
-      { regex: /\*\*\*(.+?)\*\*\*/g, type: 'bold_italic' },  // ***text*** - bold + italic
+      { regex: /\*\*\*(.+?)\*\*\*/g, type: 'bold_italic' },   // ***text*** - bold + italic
       { regex: /\*\*(.+?)\*\*/g, type: 'bold' },              // **text** - bold
       { regex: /\*(.+?)\*/g, type: 'italic' },                // *text* - italic
       { regex: /`(.+?)`/g, type: 'code' },                    // `text` - code

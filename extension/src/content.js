@@ -314,7 +314,7 @@ async function extractChats(data) {
       if (messageContainers.length === 0) continue;
 
       const messages = [];
-      let messageIndex = 0;
+      let isFirstMessage = true;
 
       for (const container of messageContainers) {
         const viewer = container.querySelector('.viewer');
@@ -332,14 +332,15 @@ async function extractChats(data) {
           defaultLanguage: data.language || Config.DEFAULTS.LANGUAGE
         });
 
-        // Skip the initial "Need help?" message
-        if (messageText.includes('Need help?') && messageText.includes('assist without penalty')) {
+        // Skip the initial "Need help?" message from Boots
+        if (isFirstMessage) {
+          isFirstMessage = false;
           continue;
         }
 
         if (messageText && messageText.trim()) {
-          // Alternate speakers: first message is USER, then BOOTS, then USER, etc.
-          const speaker = messageIndex % 2 === 0 ? Config.SPEAKERS.USER : Config.SPEAKERS.BOOTS;
+          // After skipping first BOOTS message, pattern is: USER, BOOTS, USER, BOOTS, etc.
+          const speaker = messages.length % 2 === 0 ? Config.SPEAKERS.USER : Config.SPEAKERS.BOOTS;
 
           // Check if message has code blocks
           const hasCode = messageText.includes('```');
@@ -350,7 +351,7 @@ async function extractChats(data) {
             hasCode: hasCode
           });
 
-          messageIndex++;
+          isFirstMessage = false;
         }
       }
 
