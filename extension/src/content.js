@@ -684,59 +684,59 @@ async function extractInterviewSolution(data) {
       return;
     }
 
-    // Find all message-like containers
-    const allContainers = [];
-    const allDivs = solutionContainer.querySelectorAll(Config.SELECTORS.INTERVIEW_GRID);
-    allDivs.forEach(div => {
-      const hasImg = div.querySelector(Config.SELECTORS.PROFILE_IMAGE) !== null;
-      const hasViewer = div.querySelector(Config.SELECTORS.VIEWER) !== null;
-      const classes = div.className || '';
-      if (hasImg && hasViewer && classes.includes('grid')) {
-        allContainers.push(div);
-      }
-    });
+    // Look for the acceptance criteria div (contains "Boots is expecting")
+    const borderedDivs = solutionContainer.querySelectorAll('.rounded-sm.border');
+    let solutionDiv = null;
 
-    let solutionViewer = null;
-    let foundComplete = false;
-
-    for (const container of allContainers) {
-      const viewer = container.querySelector(Config.SELECTORS.VIEWER);
-      if (viewer) {
-        const text = viewer.textContent.trim();
-
-        if (data.interviewMessages.some(msg => text.includes(msg.content.substring(0, 50)))) {
-          continue;
-        }
-
-        if (text.toLowerCase().includes('complete') || text.toLowerCase().includes('success')) {
-          foundComplete = true;
-          continue;
-        }
-
-        if (foundComplete && !solutionViewer) {
-          solutionViewer = viewer;
-          break;
-        }
+    for (const div of borderedDivs) {
+      const text = div.textContent.trim();
+      if (text.toLowerCase().includes('expecting') ||
+        text.toLowerCase().includes('acceptance criteria')) {
+        solutionDiv = div;
+        break;
       }
     }
 
-    if (!solutionViewer) {
-      const borderedDivs = solutionContainer.querySelectorAll(Config.SELECTORS.BORDERED_DIV);
-      for (const div of borderedDivs) {
-        const text = div.textContent.trim();
-        if (text.toLowerCase().includes('expecting') || text.toLowerCase().includes('point')) {
-          solutionViewer = div;
-          break;
+    if (solutionDiv) {
+      // Extract the pre element containing the acceptance criteria
+      const preElement = solutionDiv.querySelector('pre');
+
+      if (preElement) {
+        const criteriaText = preElement.textContent.trim();
+
+        // Parse the numbered list into structured expected points
+        const lines = criteriaText.split('\n').filter(line => line.trim());
+        data.expectedPoints = [];
+
+        lines.forEach(line => {
+          const match = line.match(/^(\d+)\.\s*(.+)$/);
+          if (match) {
+            data.expectedPoints.push({
+              index: parseInt(match[1]),
+              point: match[2].trim()
+            });
+          }
+        });
+
+        // Also set the solution field as formatted text
+        if (data.expectedPoints.length > 0) {
+          data.solution = 'Acceptance Criteria:\n\n' +
+            data.expectedPoints.map(p => `${p.index}. ${p.point}`).join('\n');
+
+          Logger.extraction('Solution', {
+            points: data.expectedPoints.length,
+            chars: data.solution.length
+          });
+        } else {
+          // Fallback: use the raw text from pre
+          data.solution = criteriaText;
+          Logger.extraction('Solution (raw)', { chars: data.solution.length });
         }
+      } else {
+        // Fallback: use the entire div text
+        data.solution = solutionDiv.textContent.trim();
+        Logger.extraction('Solution (div text)', { chars: data.solution.length });
       }
-    }
-
-    if (solutionViewer) {
-      data.solution = HTMLParser.parseToMarkdown(solutionViewer, {
-        defaultLanguage: data.language
-      });
-
-      Logger.extraction('Solution', { chars: data.solution.length });
     } else {
       data.solution = Config.MESSAGES.SOLUTION_NOT_AVAILABLE;
     }
