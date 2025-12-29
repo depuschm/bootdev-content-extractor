@@ -300,9 +300,6 @@ async function extractChats(data) {
     if (!isAlreadyOpen) {
       // Click the button to open this chat
       btn.click();
-
-      // Wait for chat content to load
-      await sleep(500);
     }
 
     // Extract the conversation from this chat
