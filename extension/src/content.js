@@ -93,8 +93,14 @@ async function autoOpenSolution(exerciseType) {
       const buttons = Array.from(document.querySelectorAll('button'));
       solutionButton = buttons.find(btn => {
         const text = btn.textContent.trim();
-        return text === 'Solution' || text.includes('Show Solution');
+        return text === 'Solution' || text.includes('Show Solution') || text.includes('View Solution');
       });
+
+      // Check if solution is already open by checking button class
+      if (solutionButton && solutionButton.classList.contains('bg-texture-yellow')) {
+        Logger.debug('Solution already open (button is yellow)');
+        solutionButton = null; // Don't click - already open
+      }
 
       // Wait for merge view (solution comparison) to appear
       waitForCondition = async () => {
