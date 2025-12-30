@@ -114,6 +114,33 @@ async function autoOpenSolution(exerciseType) {
       Logger.debug('Found solution button, clicking...');
       solutionButton.click();
 
+      // Check if Seer Stone modal appeared after clicking
+      // Look for the modal with Seer Stone image (more reliable than text)
+      const seerStoneModal = await waitForElement('dialog[open]', {
+        timeout: Config.TIMEOUTS.MODAL_APPEAR,
+        condition: (modal) => modal.querySelector('img[src*="seer-stone"]') !== null
+      });
+
+      if (seerStoneModal) {
+        Logger.warn('Seer Stone modal detected - exercise not yet completed. Closing modal and skipping solution.');
+
+        // Try to find Cancel button first
+        const cancelBtn = Array.from(seerStoneModal.querySelectorAll('button')).find(btn =>
+          btn.textContent.trim() === 'Cancel'
+        );
+        if (cancelBtn) {
+          cancelBtn.click();
+        } else {
+          // Fallback: click the X button
+          const closeBtn = seerStoneModal.querySelector('button svg.lucide-x');
+          if (closeBtn) {
+            closeBtn.closest('button').click();
+          }
+        }
+
+        return false; // Solution not available
+      }
+
       // Wait for the solution content to actually appear
       if (waitForCondition) {
         const element = await waitForCondition();
