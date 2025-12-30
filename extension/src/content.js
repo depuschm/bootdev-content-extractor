@@ -1,8 +1,65 @@
 // Content script that extracts data from Boot.dev pages
-// Cross-browser compatible version with interview, multiple-choice, free-text, CLI, and chat support
+// Cross-browser compatible version with interview, multiple-choice, free-text, CLI, chat support, and auto-open solution
 
 // Get the correct API (browser or chrome wrapped in Promise)
 const api = window.browserAPI || browser || chrome;
+
+// Helper function to find and click solution button
+async function autoOpenSolution(exerciseType) {
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  Logger.emoji(Config.LOG.AUTO_OPENING_SOLUTION);
+
+  try {
+    let solutionButton = null;
+
+    if (exerciseType === Config.EXERCISE_TYPES.INTERVIEW) {
+      // For interview exercises, look for "Show Solution" button
+      const interviewSide = document.querySelector(Config.SELECTORS.INTERVIEW_SIDE);
+      if (interviewSide) {
+        const buttons = Array.from(interviewSide.querySelectorAll('button'));
+        solutionButton = buttons.find(btn => {
+          const text = btn.textContent.trim();
+          return text.includes('Show Solution') || (text.includes('Solution') && text.includes('Show'));
+        });
+      }
+    } else if (exerciseType === Config.EXERCISE_TYPES.FREE_TEXT) {
+      // For free-text exercises, look for eye icon toggle button
+      solutionButton = document.querySelector(Config.SELECTORS.FREE_TEXT_TOGGLE);
+      if (solutionButton) {
+        const buttonText = solutionButton.textContent.trim();
+        // Only click if it says "Show" (not "Hide")
+        if (!buttonText.includes('Hide')) {
+          // Button is already showing "Show", we can click it
+        } else {
+          // Already visible
+          solutionButton = null;
+        }
+      }
+    } else if (exerciseType === Config.EXERCISE_TYPES.CODING) {
+      // For coding exercises, look for "Solution" button in editor area
+      const buttons = Array.from(document.querySelectorAll('button'));
+      solutionButton = buttons.find(btn => {
+        const text = btn.textContent.trim();
+        return text === 'Solution' || text.includes('Show Solution');
+      });
+    }
+
+    if (solutionButton) {
+      Logger.debug('Found solution button, clicking...');
+      solutionButton.click();
+      await sleep(Config.EXTRACTION.SOLUTION_OPEN_DELAY);
+      Logger.extraction('Solution opened successfully');
+      return true;
+    } else {
+      Logger.debug('No solution button found or solution already open');
+      return false;
+    }
+  } catch (e) {
+    Logger.error('Error auto-opening solution:', e);
+    return false;
+  }
+}
 
 // Extract code from a single editor using advanced scrolling technique
 async function extractCodeFromEditor(editor, config = {}) {
@@ -144,6 +201,7 @@ async function extractContent() {
   // Get settings - use Promise-based API
   const settings = await api.storage.sync.get({
     extractSolution: Config.DEFAULTS.EXTRACT_SOLUTION,
+    autoOpenSolution: Config.DEFAULTS.AUTO_OPEN_SOLUTION,
     includeMetadata: Config.DEFAULTS.INCLUDE_METADATA,
     extractChats: Config.DEFAULTS.EXTRACT_CHATS
   });
@@ -190,6 +248,12 @@ async function extractContent() {
     // This is a free-text exercise
     data.exerciseType = Config.EXERCISE_TYPES.FREE_TEXT;
     Logger.emoji(Config.LOG.DETECTED_FREE_TEXT);
+
+    // Auto-open solution if enabled
+    if (settings.autoOpenSolution && settings.extractSolution) {
+      await autoOpenSolution(data.exerciseType);
+    }
+
     await extractFreeText(data, settings);
   } else if (hasMultipleChoice) {
     // This is a multiple-choice exercise
@@ -200,11 +264,23 @@ async function extractContent() {
     // This is an interview exercise
     data.exerciseType = Config.EXERCISE_TYPES.INTERVIEW;
     Logger.emoji(Config.LOG.DETECTED_INTERVIEW);
+
+    // Auto-open solution if enabled
+    if (settings.autoOpenSolution && settings.extractSolution) {
+      await autoOpenSolution(data.exerciseType);
+    }
+
     await extractInterview(data);
   } else {
     // This is a coding exercise
     data.exerciseType = Config.EXERCISE_TYPES.CODING;
     Logger.emoji(Config.LOG.DETECTED_CODING);
+
+    // Auto-open solution if enabled (for coding exercises)
+    if (settings.autoOpenSolution && settings.extractSolution) {
+      await autoOpenSolution(data.exerciseType);
+    }
+
     await extractAllTabs(data);
 
     // IMPROVED: After extracting all files, set the language from actual file extensions

@@ -17,6 +17,7 @@ async function loadSettings() {
   const settings = await api.storage.sync.get({
     format: Config.DEFAULTS.FORMAT,
     extractSolution: Config.DEFAULTS.EXTRACT_SOLUTION,
+    autoOpenSolution: Config.DEFAULTS.AUTO_OPEN_SOLUTION,
     extractChats: Config.DEFAULTS.EXTRACT_CHATS,
     includeMetadata: Config.DEFAULTS.INCLUDE_METADATA,
     notionEnabled: Config.DEFAULTS.NOTION_ENABLED,
@@ -26,6 +27,7 @@ async function loadSettings() {
 
   document.getElementById('format').value = settings.format;
   document.getElementById('extractSolution').checked = settings.extractSolution;
+  document.getElementById('autoOpenSolution').checked = settings.autoOpenSolution;
   document.getElementById('extractChats').checked = settings.extractChats;
   document.getElementById('includeMetadata').checked = settings.includeMetadata;
   document.getElementById('notionEnabled').checked = settings.notionEnabled;
@@ -238,6 +240,7 @@ async function saveSettings() {
   const settings = {
     format: document.getElementById('format').value,
     extractSolution: document.getElementById('extractSolution').checked,
+    autoOpenSolution: document.getElementById('autoOpenSolution').checked,
     extractChats: document.getElementById('extractChats').checked,
     includeMetadata: document.getElementById('includeMetadata').checked,
     notionEnabled: document.getElementById('notionEnabled').checked,

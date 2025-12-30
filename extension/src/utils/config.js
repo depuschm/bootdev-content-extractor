@@ -292,6 +292,9 @@ const Config = {
 
     // Text formatting
     INDENT_SPACES: 3,  // Spaces per nesting level
+
+    // Solution auto-open delay
+    SOLUTION_OPEN_DELAY: 500,
   },
 
   // Default values
@@ -300,6 +303,7 @@ const Config = {
     EXTRACT_SOLUTION: true,
     INCLUDE_METADATA: true,
     EXTRACT_CHATS: true,
+    AUTO_OPEN_SOLUTION: true,
     NOTION_ENABLED: false,
     LANGUAGE: 'unknown',
   },
@@ -361,7 +365,8 @@ const Config = {
     LOOKING_FOR_SOLUTION: '\n💡 Looking for interview solution...',
     PROCESSING_TAB: '\n📂 Processing tab #',
     RETURNING_TO_TAB: '\n🔙 Returning to initial tab...',
-    SOLUTION_VIEW_DETECTED: '\n💡 Solution view detected – capturing right-side editor...',
+    SOLUTION_VIEW_DETECTED: '\n💡 Solution view detected — capturing right-side editor...',
+    AUTO_OPENING_SOLUTION: '🔓 Auto-opening solution...',
   },
 
   // Helper functions
