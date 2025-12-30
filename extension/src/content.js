@@ -968,7 +968,6 @@ async function extractAllTabs(data) {
   console.log(`Found ${tabButtons.length} tabs`);
 
   const codeFiles = [];
-  const processed = new Set();
 
   // Process each tab
   for (let i = 0; i < tabButtons.length; i++) {
@@ -978,31 +977,42 @@ async function extractAllTabs(data) {
     // Click tab to activate it
     btn.click();
 
-    // Wait for the editor to become visible and active after tab switch
+    // Wait a moment for the tab to activate
+    await new Promise(r => setTimeout(r, 200));
+
+    // Find the main editor container (exclude merge view editors)
     const editor = await waitForElement(() => {
+      // First, check if we're in solution/merge view - if so, skip to avoid confusion
+      const mergeView = document.querySelector('.cm-mergeView');
+      if (mergeView) {
+        // In merge view, the LEFT editor is the user's code
+        const leftEditor = mergeView.querySelector('.cm-mergeViewEditor:first-child .cm-editor .cm-content[role="textbox"]');
+        if (leftEditor && isEditorVisible(leftEditor)) {
+          return leftEditor;
+        }
+      }
+
+      // Not in merge view, find the main editor
+      // Look for editors that are NOT inside a merge view
       const allEditors = document.querySelectorAll('.cm-content[role="textbox"]');
       for (const ed of allEditors) {
-        if (!processed.has(ed) && isEditorVisible(ed)) {
+        // Skip if this editor is inside a merge view
+        if (ed.closest('.cm-mergeView')) continue;
+
+        // This is a standalone editor - use it if visible
+        if (isEditorVisible(ed)) {
           return ed;
         }
       }
       return null;
     }, { timeout: Config.TIMEOUTS.TAB_SWITCH });
 
-    // Fallback: if waitForElement times out, try to find any unprocessed editor
-    let finalEditor = editor;
-    if (!finalEditor) {
-      const allEditors = document.querySelectorAll('.cm-content[role="textbox"]');
-      if (allEditors[i] && !processed.has(allEditors[i])) {
-        finalEditor = allEditors[i];
-      }
+    if (!editor) {
+      Logger.warn(`Could not find editor for tab ${i + 1}`);
+      continue;
     }
 
-    if (!finalEditor) continue;
-
-    processed.add(finalEditor);
-
-    // Get tab name FIRST to detect language
+    // Get tab name to detect language
     let fileName = `file_${i}`;
     let fileLanguage = Config.DEFAULTS.LANGUAGE;
 
@@ -1019,7 +1029,7 @@ async function extractAllTabs(data) {
     }
 
     // Extract code from this editor
-    const code = await extractCodeFromEditor(finalEditor);
+    const code = await extractCodeFromEditor(editor);
 
     codeFiles.push({
       fileName: fileName,
@@ -1042,6 +1052,7 @@ async function extractAllTabs(data) {
   // Store all files
   data.allFiles = codeFiles;
 }
+
 
 // Extract solution code if available (for coding exercises)
 async function extractSolution(data) {
