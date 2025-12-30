@@ -275,23 +275,30 @@ const Config = {
     'tex': 'LaTeX'
   },
 
-  // Extraction settings
+  // Timeouts for async operations (in milliseconds)
+  TIMEOUTS: {
+    // Element waiting timeouts
+    SOLUTION_LOAD: 5000,        // Wait for solution content to appear
+    TAB_SWITCH: 2000,           // Wait for editor to become visible after tab switch
+    CHAT_LOAD: 3000,            // Wait for chat messages to load
+    ELEMENT_APPEAR: 5000,       // Default timeout for waitForElement
+
+    // Editor extraction timeouts
+    EDITOR_APPEAR: 3000,        // Wait for editor to become visible
+    VISIBILITY_POLL: 80,        // Interval to poll for element visibility
+
+    // Rendering delays (necessary for browser rendering)
+    SETTLE_AFTER_APPEAR: 220,   // Wait after editor appears for initial render
+    SCROLL_WAIT: 160,           // Wait between scroll steps for content to render
+    WIGGLE_DELAY: 120,          // Delay between wiggle scrolls to force render
+  },
+
+  // Editor extraction parameters
   EXTRACTION: {
     // Code editor scrolling parameters
-    SETTLE_AFTER_APPEAR: 220,
-    STEP_PX: 200,
-    WAIT_MS: 160,
-    FORCED_OVERSHOOT: 4000,
-    WIGGLE_COUNT: 3,
-    WIGGLE_DELAY: 120,
-    EDITOR_APPEAR_TIMEOUT: 3000,
-    VISIBILITY_POLL_INTERVAL: 80,
-
-    // Tab switching delay
-    TAB_SWITCH_DELAY: 400,
-
-    // Text formatting
-    INDENT_SPACES: 3,  // Spaces per nesting level
+    STEP_PX: 200,               // Pixels to scroll per step
+    FORCED_OVERSHOOT: 4000,     // Extra pixels to scroll beyond reported height
+    WIGGLE_COUNT: 3,            // Number of wiggle scrolls to force final render
   },
 
   // Default values

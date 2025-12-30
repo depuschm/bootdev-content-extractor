@@ -4,11 +4,16 @@
 // Get the correct API (browser or chrome wrapped in Promise)
 const api = window.browserAPI || browser || chrome;
 
+// Helper function to wait for animation frames
+async function waitForFrame() {
+  return new Promise(resolve => requestAnimationFrame(resolve));
+}
+
 // Helper function to wait for element to appear or change
 async function waitForElement(selector, options = {}) {
   const {
-    timeout = 5000,
-    checkInterval = 100,
+    timeout = Config.TIMEOUTS.ELEMENT_APPEAR,
+    checkInterval = Config.TIMEOUTS.VISIBILITY_POLL,
     condition = null
   } = options;
 
@@ -62,7 +67,7 @@ async function autoOpenSolution(exerciseType) {
               }
             }
             return null;
-          }, { timeout: 3000 });
+          }, { timeout: Config.TIMEOUTS.SOLUTION_LOAD });
         };
       }
     } else if (exerciseType === Config.EXERCISE_TYPES.FREE_TEXT) {
@@ -77,7 +82,9 @@ async function autoOpenSolution(exerciseType) {
         } else {
           // Wait for checks list to appear
           waitForCondition = async () => {
-            return await waitForElement(Config.SELECTORS.FREE_TEXT_CHECKS, { timeout: 3000 });
+            return await waitForElement(Config.SELECTORS.FREE_TEXT_CHECKS, {
+              timeout: Config.TIMEOUTS.SOLUTION_LOAD
+            });
           };
         }
       }
@@ -91,7 +98,9 @@ async function autoOpenSolution(exerciseType) {
 
       // Wait for merge view (solution comparison) to appear
       waitForCondition = async () => {
-        return await waitForElement(Config.SELECTORS.MERGE_VIEW, { timeout: 3000 });
+        return await waitForElement(Config.SELECTORS.MERGE_VIEW, {
+          timeout: Config.TIMEOUTS.SOLUTION_LOAD
+        });
       };
     }
 
@@ -126,14 +135,14 @@ async function autoOpenSolution(exerciseType) {
 // Extract code from a single editor using advanced scrolling technique
 async function extractCodeFromEditor(editor, config = {}) {
   const {
-    settleAfterAppear = Config.EXTRACTION.SETTLE_AFTER_APPEAR,
+    settleAfterAppear = Config.TIMEOUTS.SETTLE_AFTER_APPEAR,
     stepPx = Config.EXTRACTION.STEP_PX,
-    waitMs = Config.EXTRACTION.WAIT_MS,
+    waitMs = Config.TIMEOUTS.SCROLL_WAIT,
     forcedOvershoot = Config.EXTRACTION.FORCED_OVERSHOOT,
     wiggleCount = Config.EXTRACTION.WIGGLE_COUNT,
-    wiggleDelay = Config.EXTRACTION.WIGGLE_DELAY,
-    editorAppearTimeout = Config.EXTRACTION.EDITOR_APPEAR_TIMEOUT,
-    visibilityPollInterval = Config.EXTRACTION.VISIBILITY_POLL_INTERVAL
+    wiggleDelay = Config.TIMEOUTS.WIGGLE_DELAY,
+    editorAppearTimeout = Config.TIMEOUTS.EDITOR_APPEAR,
+    visibilityPollInterval = Config.TIMEOUTS.VISIBILITY_POLL
   } = config;
 
   const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -399,7 +408,6 @@ async function extractContent() {
 async function extractChats(data) {
   Logger.emoji(Config.LOG.EXTRACTING_CHATS);
 
-  const sleep = ms => new Promise(r => setTimeout(r, ms));
   const chats = [];
 
   // Find all chat buttons (excluding the "New Chat" button with +)
@@ -438,7 +446,19 @@ async function extractChats(data) {
     if (!isAlreadyOpen) {
       // Click the button to open this chat
       btn.click();
-      await sleep(300); // Wait for chat to load
+
+      // Wait for the conversation to load by checking for message containers
+      await waitForElement(() => {
+        const conversationBlocks = chatContainer.querySelectorAll('.pb-4');
+        // Find a block with actual messages
+        for (const block of conversationBlocks) {
+          const messageContainers = block.querySelectorAll('.grid.grid-cols-\\[50px_minmax\\(0\\,1fr\\)\\]');
+          if (messageContainers.length > 0) {
+            return block;
+          }
+        }
+        return null;
+      }, { timeout: Config.TIMEOUTS.CHAT_LOAD });
     }
 
     // Extract the conversation from this chat
@@ -903,8 +923,6 @@ async function extractViewerContent(data) {
 
 // Extract code from all editor tabs
 async function extractAllTabs(data) {
-  const sleep = ms => new Promise(r => setTimeout(r, ms));
-
   // Find all tab buttons
   const tabButtons = Array.from(document.querySelectorAll('ul[role="tablist"] button'));
   const initialTab = tabButtons.find(b => b.getAttribute('aria-selected') === 'true') || tabButtons[0];
@@ -926,26 +944,30 @@ async function extractAllTabs(data) {
 
     // Click tab to activate it
     btn.click();
-    await sleep(400); // Wait for tab to activate
 
-    // Find visible editor
-    const allEditors = document.querySelectorAll('.cm-content[role="textbox"]');
-    let editor = null;
+    // Wait for the editor to become visible and active after tab switch
+    const editor = await waitForElement(() => {
+      const allEditors = document.querySelectorAll('.cm-content[role="textbox"]');
+      for (const ed of allEditors) {
+        if (!processed.has(ed) && isEditorVisible(ed)) {
+          return ed;
+        }
+      }
+      return null;
+    }, { timeout: Config.TIMEOUTS.TAB_SWITCH });
 
-    for (const ed of allEditors) {
-      if (!processed.has(ed) && isEditorVisible(ed)) {
-        editor = ed;
-        break;
+    // Fallback: if waitForElement times out, try to find any unprocessed editor
+    let finalEditor = editor;
+    if (!finalEditor) {
+      const allEditors = document.querySelectorAll('.cm-content[role="textbox"]');
+      if (allEditors[i] && !processed.has(allEditors[i])) {
+        finalEditor = allEditors[i];
       }
     }
 
-    if (!editor && allEditors[i] && !processed.has(allEditors[i])) {
-      editor = allEditors[i];
-    }
+    if (!finalEditor) continue;
 
-    if (!editor) continue;
-
-    processed.add(editor);
+    processed.add(finalEditor);
 
     // Get tab name FIRST to detect language
     let fileName = `file_${i}`;
@@ -964,7 +986,7 @@ async function extractAllTabs(data) {
     }
 
     // Extract code from this editor
-    const code = await extractCodeFromEditor(editor);
+    const code = await extractCodeFromEditor(finalEditor);
 
     codeFiles.push({
       fileName: fileName,
@@ -980,7 +1002,8 @@ async function extractAllTabs(data) {
   if (initialTab) {
     console.log('\n🔙 Returning to initial tab...');
     initialTab.click();
-    await sleep(400);
+    // Wait for animation frame to complete for visual consistency
+    await waitForFrame();
   }
 
   // Store all files
