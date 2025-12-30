@@ -292,9 +292,6 @@ const Config = {
 
     // Text formatting
     INDENT_SPACES: 3,  // Spaces per nesting level
-
-    // Solution auto-open delay
-    SOLUTION_OPEN_DELAY: 500,
   },
 
   // Default values

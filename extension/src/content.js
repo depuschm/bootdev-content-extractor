@@ -4,14 +4,41 @@
 // Get the correct API (browser or chrome wrapped in Promise)
 const api = window.browserAPI || browser || chrome;
 
+// Helper function to wait for element to appear or change
+async function waitForElement(selector, options = {}) {
+  const {
+    timeout = 5000,
+    checkInterval = 100,
+    condition = null
+  } = options;
+
+  const startTime = Date.now();
+
+  while (Date.now() - startTime < timeout) {
+    const element = typeof selector === 'function' ? selector() : document.querySelector(selector);
+
+    if (element) {
+      // If there's a condition function, check it
+      if (condition && !condition(element)) {
+        await new Promise(r => setTimeout(r, checkInterval));
+        continue;
+      }
+      return element;
+    }
+
+    await new Promise(r => setTimeout(r, checkInterval));
+  }
+
+  return null;
+}
+
 // Helper function to find and click solution button
 async function autoOpenSolution(exerciseType) {
-  const sleep = ms => new Promise(r => setTimeout(r, ms));
-
   Logger.emoji(Config.LOG.AUTO_OPENING_SOLUTION);
 
   try {
     let solutionButton = null;
+    let waitForCondition = null;
 
     if (exerciseType === Config.EXERCISE_TYPES.INTERVIEW) {
       // For interview exercises, look for "Show Solution" button
@@ -22,6 +49,21 @@ async function autoOpenSolution(exerciseType) {
           const text = btn.textContent.trim();
           return text.includes('Show Solution') || (text.includes('Solution') && text.includes('Show'));
         });
+
+        // Wait for the solution div with acceptance criteria to appear
+        waitForCondition = async () => {
+          return await waitForElement(() => {
+            const borderedDivs = interviewSide.querySelectorAll('.rounded-sm.border');
+            for (const div of borderedDivs) {
+              const text = div.textContent.trim();
+              if (text.toLowerCase().includes('expecting') ||
+                text.toLowerCase().includes('acceptance criteria')) {
+                return div;
+              }
+            }
+            return null;
+          }, { timeout: 3000 });
+        };
       }
     } else if (exerciseType === Config.EXERCISE_TYPES.FREE_TEXT) {
       // For free-text exercises, look for eye icon toggle button
@@ -29,11 +71,14 @@ async function autoOpenSolution(exerciseType) {
       if (solutionButton) {
         const buttonText = solutionButton.textContent.trim();
         // Only click if it says "Show" (not "Hide")
-        if (!buttonText.includes('Hide')) {
-          // Button is already showing "Show", we can click it
-        } else {
+        if (buttonText.includes('Hide')) {
           // Already visible
           solutionButton = null;
+        } else {
+          // Wait for checks list to appear
+          waitForCondition = async () => {
+            return await waitForElement(Config.SELECTORS.FREE_TEXT_CHECKS, { timeout: 3000 });
+          };
         }
       }
     } else if (exerciseType === Config.EXERCISE_TYPES.CODING) {
@@ -43,14 +88,31 @@ async function autoOpenSolution(exerciseType) {
         const text = btn.textContent.trim();
         return text === 'Solution' || text.includes('Show Solution');
       });
+
+      // Wait for merge view (solution comparison) to appear
+      waitForCondition = async () => {
+        return await waitForElement(Config.SELECTORS.MERGE_VIEW, { timeout: 3000 });
+      };
     }
 
     if (solutionButton) {
       Logger.debug('Found solution button, clicking...');
       solutionButton.click();
-      await sleep(Config.EXTRACTION.SOLUTION_OPEN_DELAY);
-      Logger.extraction('Solution opened successfully');
-      return true;
+
+      // Wait for the solution content to actually appear
+      if (waitForCondition) {
+        const element = await waitForCondition();
+        if (element) {
+          Logger.extraction('Solution opened and content loaded successfully');
+          return true;
+        } else {
+          Logger.warn('Solution button clicked but content did not appear within timeout');
+          return true; // Still return true as we clicked the button
+        }
+      } else {
+        Logger.extraction('Solution opened successfully');
+        return true;
+      }
     } else {
       Logger.debug('No solution button found or solution already open');
       return false;
