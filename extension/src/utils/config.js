@@ -282,10 +282,11 @@ const Config = {
     TAB_SWITCH: 2000,           // Wait for editor to become visible after tab switch
     CHAT_LOAD: 3000,            // Wait for chat messages to load
     ELEMENT_APPEAR: 5000,       // Default timeout for waitForElement
+    MODAL_APPEAR: 1000,         // Wait for modal to appear (Seer Stone)
 
     // Editor extraction timeouts
     EDITOR_APPEAR: 3000,        // Wait for editor to become visible
-    VISIBILITY_POLL: 80,        // Interval to poll for element visibility
+    VISIBILITY_POLL: 16,        // Interval to poll for element visibility (one frame)
 
     // Rendering delays (necessary for browser rendering)
     SETTLE_AFTER_APPEAR: 220,   // Wait after editor appears for initial render

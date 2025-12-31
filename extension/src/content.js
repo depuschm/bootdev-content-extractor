@@ -188,37 +188,53 @@ async function extractCodeFromEditor(editor, config = {}) {
     let editorView = null;
 
     // Try multiple ways to find the EditorView instance
-    if (editor.cmView) {
+    // First check the element itself
+    if (editor.cmView?.view) {
       editorView = editor.cmView.view;
-    } else if (editor.CodeMirror) {
+    }
+    // Check if the element IS the view
+    else if (editor.state?.doc) {
+      editorView = editor;
+    }
+    // Check CodeMirror property
+    else if (editor.CodeMirror) {
       editorView = editor.CodeMirror;
-    } else if (editor.parentElement) {
-      editorView = editor.parentElement.cmView?.view;
+    }
+    // Check parent element
+    else if (editor.parentElement?.cmView?.view) {
+      editorView = editor.parentElement.cmView.view;
     }
 
-    // Walk up the DOM tree to find the EditorView
+    // Walk up the DOM tree to find the EditorView (up to MAX_DOM_DEPTH levels)
     if (!editorView) {
       let element = editor;
-      while (element && !editorView) {
-        if (element.cmView && element.cmView.view) {
+      let depth = 0;
+      while (element && !editorView && depth < Config.EXTRACTION.MAX_DOM_DEPTH) {
+        if (element.cmView?.view) {
           editorView = element.cmView.view;
           break;
         }
+        // Also check if this element has state.doc directly
+        if (element.state?.doc) {
+          editorView = element;
+          break;
+        }
         element = element.parentElement;
+        depth++;
       }
     }
 
-    if (editorView && editorView.state && editorView.state.doc) {
+    if (editorView?.state?.doc) {
       code = editorView.state.doc.toString();
-      Logger.debug('✅ EditorView.state.doc:', code.length, 'characters');
+      Logger.debug('✅ EditorView.state.doc:', code.length, 'characters (instant extraction)');
       return code;
     }
   } catch (e) {
     Logger.debug('Method 1 (EditorView.state.doc) failed:', e);
   }
 
-  // Method 2: Advanced force-scroll extraction
-  Logger.debug('Using advanced scroll extraction...');
+  // Method 2: Advanced force-scroll extraction (FALLBACK)
+  Logger.debug('Method 1 failed, using scroll extraction...');
 
   const root = editor.closest(Config.SELECTORS.EDITOR_ROOT) || editor;
   const scrollEl = root.querySelector(Config.SELECTORS.EDITOR_SCROLLER) || root;
@@ -977,8 +993,8 @@ async function extractAllTabs(data) {
     // Click tab to activate it
     btn.click();
 
-    // Wait a moment for the tab to activate
-    await new Promise(r => setTimeout(r, 200));
+    // Wait just one animation frame for the DOM to update
+    await waitForFrame();
 
     // Find the main editor container (exclude merge view editors)
     const editor = await waitForElement(() => {
@@ -1005,7 +1021,7 @@ async function extractAllTabs(data) {
         }
       }
       return null;
-    }, { timeout: Config.TIMEOUTS.TAB_SWITCH });
+    }, { timeout: Config.TIMEOUTS.TAB_SWITCH, checkInterval: Config.TIMEOUTS.VISIBILITY_POLL });
 
     if (!editor) {
       Logger.warn(`Could not find editor for tab ${i + 1}`);
@@ -1052,7 +1068,6 @@ async function extractAllTabs(data) {
   // Store all files
   data.allFiles = codeFiles;
 }
-
 
 // Extract solution code if available (for coding exercises)
 async function extractSolution(data) {
