@@ -1,5 +1,5 @@
 // Notion API integration for Boot.dev Content Extractor
-// Cross-browser compatible with interview, multiple-choice, free-text, and CLI exercise support
+// Cross-browser compatible with interview, multiple-choice, free-text, CLI exercise, and rating support
 
 const NotionAPI = {
   baseURL: 'https://api.notion.com/v1',
@@ -56,6 +56,13 @@ const NotionAPI = {
     if (content.url) {
       properties['URL'] = {
         url: content.url
+      };
+    }
+
+    // Add Rating property if rating exists and is greater than 0
+    if (content.rating && content.rating > 0) {
+      properties['Rating'] = {
+        number: content.rating
       };
     }
 

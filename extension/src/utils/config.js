@@ -17,6 +17,10 @@ const Config = {
     CODE_BLOCK: 'pre code',
     COPY_BUTTON: 'button',
 
+    // Rating
+    RATING_CONTAINER: '[aria-label="Rate this challenge"]',
+    FILLED_STAR: 'span[fill="currentColor"]',
+
     // Interview specific
     INTERVIEW_GRID: 'div',  // Filtered by having img and .viewer
     PROFILE_IMAGE: 'img',
@@ -300,6 +304,7 @@ const Config = {
     STEP_PX: 200,               // Pixels to scroll per step
     FORCED_OVERSHOOT: 4000,     // Extra pixels to scroll beyond reported height
     WIGGLE_COUNT: 3,            // Number of wiggle scrolls to force final render
+    MAX_DOM_DEPTH: 10,          // Maximum depth to traverse when looking for EditorView
   },
 
   // Default values

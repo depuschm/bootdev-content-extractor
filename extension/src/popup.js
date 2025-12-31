@@ -91,6 +91,7 @@ function formatData(data, format) {
   const isFreeText = data.exerciseType === Config.EXERCISE_TYPES.FREE_TEXT;
   const isCLI = data.exerciseType === Config.EXERCISE_TYPES.CLI;
   const hasChats = data.chats && data.chats.length > 0;
+  const hasRating = data.rating && data.rating > 0;
   const version = Config.getExtensionVersion();
 
   if (format === Config.FORMATS.JSON) {
@@ -104,6 +105,11 @@ function formatData(data, format) {
       notes: data.notes || [],
       examples: data.examples || []
     };
+
+    // Add rating if available
+    if (hasRating) {
+      jsonData.rating = data.rating;
+    }
 
     if (isFreeText) {
       jsonData.freeText = data.freeText || null;
@@ -138,12 +144,19 @@ function formatData(data, format) {
       markdown += `**Type:** ${data.type}\n`;
       markdown += `**Exercise Type:** ${data.exerciseType}\n`;
       markdown += `**Language:** ${data.language || 'Unknown'}\n`;
+      if (hasRating) {
+        markdown += `**Rating:** ${'⭐'.repeat(data.rating)} (${data.rating}/5)\n`;
+      }
       markdown += `**URL:** ${data.url}\n`;
       markdown += `**Extracted:** ${new Date(data.timestamp).toLocaleString()}\n\n`;
     } else {
       markdown += `**Type:** ${data.type}\n`;
       markdown += `**Exercise Type:** ${data.exerciseType}\n`;
-      markdown += `**Language:** ${data.language || 'Unknown'}\n\n`;
+      markdown += `**Language:** ${data.language || 'Unknown'}\n`;
+      if (hasRating) {
+        markdown += `**Rating:** ${'⭐'.repeat(data.rating)} (${data.rating}/5)\n`;
+      }
+      markdown += '\n';
     }
 
     markdown += `## Description\n${data.description || 'Not found'}\n\n`;
@@ -287,12 +300,19 @@ function formatData(data, format) {
       text += `Type: ${data.type}\n`;
       text += `Exercise Type: ${data.exerciseType}\n`;
       text += `Language: ${data.language || 'Unknown'}\n`;
+      if (hasRating) {
+        text += `Rating: ${data.rating}/5 stars\n`;
+      }
       text += `URL: ${data.url}\n`;
       text += `Extracted: ${new Date(data.timestamp).toLocaleString()}\n\n`;
     } else {
       text += `Type: ${data.type}\n`;
       text += `Exercise Type: ${data.exerciseType}\n`;
-      text += `Language: ${data.language || 'Unknown'}\n\n`;
+      text += `Language: ${data.language || 'Unknown'}\n`;
+      if (hasRating) {
+        text += `Rating: ${data.rating}/5 stars\n`;
+      }
+      text += '\n';
     }
 
     text += `DESCRIPTION:\n${data.description || 'Not found'}\n\n`;
@@ -452,6 +472,11 @@ async function extractContent() {
       preview.style.display = 'block';
 
       let previewText = `Title: ${currentData.title || 'N/A'}\nType: ${currentData.type}\nExercise Type: ${currentData.exerciseType}\nLanguage: ${currentData.language || 'Unknown'}`;
+
+      // Add rating to preview if available
+      if (currentData.rating && currentData.rating > 0) {
+        previewText += `\nRating: ${'⭐'.repeat(currentData.rating)} (${currentData.rating}/5)`;
+      }
 
       if (currentData.exerciseType === Config.EXERCISE_TYPES.FREE_TEXT) {
         const checkCount = currentData.freeText?.checks?.length || 0;

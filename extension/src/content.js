@@ -1,5 +1,5 @@
 // Content script that extracts data from Boot.dev pages
-// Cross-browser compatible version with interview, multiple-choice, free-text, CLI, chat support, and auto-open solution
+// Cross-browser compatible version with interview, multiple-choice, free-text, CLI, chat support, auto-open solution, and rating extraction
 
 // Get the correct API (browser or chrome wrapped in Promise)
 const api = window.browserAPI || browser || chrome;
@@ -35,6 +35,28 @@ async function waitForElement(selector, options = {}) {
   }
 
   return null;
+}
+
+// Extract rating from the page (1-5 stars, or 0 if not rated yet)
+function extractRating() {
+  try {
+    // Look for the rating container with aria-label="Rate this challenge"
+    const ratingContainer = document.querySelector('[aria-label="Rate this challenge"]');
+    if (!ratingContainer) {
+      Logger.debug('Rating container not found');
+      return 0;
+    }
+
+    // Count filled stars (stars with fill="currentColor")
+    const filledStars = ratingContainer.querySelectorAll('span[fill="currentColor"]');
+    const rating = filledStars.length;
+
+    Logger.extraction('Rating', { stars: rating });
+    return rating;
+  } catch (e) {
+    Logger.error('Error extracting rating:', e);
+    return 0;
+  }
 }
 
 // Helper function to find and click solution button
@@ -346,8 +368,12 @@ async function extractContent() {
     multipleChoice: null,
     freeText: null,
     cli: null,
-    chats: []
+    chats: [],
+    rating: 0  // Add rating field
   };
+
+  // Extract rating first (before any auto-open operations that might change the page)
+  data.rating = extractRating();
 
   // Extract viewer content (left side)
   await extractViewerContent(data);
