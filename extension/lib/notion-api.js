@@ -103,30 +103,6 @@ const NotionAPI = {
     const isFreeText = content.exerciseType === Config.EXERCISE_TYPES.FREE_TEXT;
     const isCLI = content.exerciseType === Config.EXERCISE_TYPES.CLI;
 
-    // Add metadata header at the top of page content
-    if (content.includeMetadata) {
-      const metadataText = [];
-      metadataText.push(`*Type:* ${content.type}`);
-      metadataText.push(`*Exercise Type:* ${content.exerciseType}`);
-      metadataText.push(`*Language:* ${content.language || 'Unknown'}`);
-      if (content.rating && content.rating > 0) {
-        metadataText.push(`*Rating:* ${'⭐'.repeat(content.rating)} (${content.rating}/5)`);
-      }
-      metadataText.push(`*URL:* ${content.url}`);
-      metadataText.push(`*Extracted:* ${new Date(content.timestamp).toLocaleString()}`);
-
-      blocks.push({
-        object: 'block',
-        type: 'callout',
-        callout: {
-          rich_text: this.parseRichText(metadataText.join('\n')),
-          icon: { type: 'emoji', emoji: 'ℹ️' },
-          color: 'gray_background'
-        }
-      });
-      blocks.push({ object: 'block', type: 'divider', divider: {} });
-    }
-
     // Parse description markdown to blocks
     if (content.description) {
       const descriptionBlocks = this.parseMarkdownToBlocks(content.description, content.language);
