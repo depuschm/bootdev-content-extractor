@@ -90,8 +90,8 @@ Properties to add:
 - **Exercise Type** (Select): Coding, Interview, Multiple Choice, Free Text, CLI
 - **Language** (Select): Python, JavaScript, Go, etc.
 - **URL** (URL): Link back to the exercise
-- **Rating** (Number): Your rating (1-5)
-- **Date** (Date): When you completed it
+- **Date** (Date): Extraction timestamp
+- **Rating** (Number): Your rating (1-5 stars)
 
 #### Database 2: "Boot.dev Lessons" (Optional)
 Same properties as above, or customize to your needs!

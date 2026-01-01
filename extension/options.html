@@ -24,11 +24,14 @@
           <li>Name it (e.g., "Boot.dev Content Extractor") and select your workspace</li>
           <li>Go to the <strong>Configuration</strong> tab and copy the <strong>Internal Integration Secret</strong> (starts with <code>ntn_</code>)</li>
           <li>Create one or more <strong>databases</strong> in Notion for different exercise types</li>
-          <li>Add these columns to your databases for better organization:
+          <li>Add these columns to your databases to correctly paste the extracted content:
             <ul style="margin-top: 8px; margin-left: 20px; color: var(--gray-500); font-size: 12px;">
-              <li><strong>Type</strong> - Property type: Select</li>
-              <li><strong>Language</strong> - Property type: Select</li>
-              <li><strong>URL</strong> - Property type: URL</li>
+              <li><strong>Type</strong> - Property type: Select (values: Challenge, Lesson)</li>
+              <li><strong>Exercise Type</strong> - Property type: Select (values: Coding, Interview, Multiple Choice, Free Text, CLI)</li>
+              <li><strong>Language</strong> - Property type: Select (values: Python, JavaScript, Go, etc.)</li>
+              <li><strong>URL</strong> - Property type: URL (Link back to the exercise)</li>
+              <li><strong>Date</strong> - Property type: Date (Extraction timestamp)</li>
+              <li><strong>Rating</strong> - Property type: Number (Your rating: 1-5 stars)</li>
             </ul>
           </li>
           <li>For each database: Click the <strong>"..."</strong> menu → <strong>"+ Add connections"</strong> → Select your integration</li>
