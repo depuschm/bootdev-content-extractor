@@ -997,99 +997,6 @@ async function extractViewerContent(data) {
   });
 }
 
-// Helper function to check if an editor is the user's editable code
-function isUserEditableEditor(editor) {
-  try {
-    // Find the EditorView instance
-    let editorView = null;
-
-    // Try multiple ways to find the EditorView instance
-    if (editor.cmView?.view) {
-      editorView = editor.cmView.view;
-    } else if (editor.state?.doc) {
-      editorView = editor;
-    } else if (editor.CodeMirror) {
-      editorView = editor.CodeMirror;
-    } else if (editor.parentElement?.cmView?.view) {
-      editorView = editor.parentElement.cmView.view;
-    }
-
-    // Walk up the DOM tree to find the EditorView
-    if (!editorView) {
-      let element = editor;
-      let depth = 0;
-      while (element && !editorView && depth < Config.EXTRACTION.MAX_DOM_DEPTH) {
-        if (element.cmView?.view) {
-          editorView = element.cmView.view;
-          break;
-        }
-        if (element.state?.doc) {
-          editorView = element;
-          break;
-        }
-        element = element.parentElement;
-        depth++;
-      }
-    }
-
-    if (!editorView || !editorView.state?.doc) {
-      Logger.debug('Could not find EditorView instance');
-      return false;
-    }
-
-    // Get the current document state
-    const originalDoc = editorView.state.doc;
-    const originalLength = originalDoc.length;
-
-    // Try to insert a character at the end of the document
-    try {
-      // Create a transaction to insert a single space character at the end
-      const transaction = editorView.state.update({
-        changes: { from: originalLength, insert: ' ' }
-      });
-      alert("s")
-
-      // Dispatch the transaction
-      editorView.dispatch(transaction);
-
-      // Check if the character was actually inserted
-      const newDoc = editorView.state.doc;
-      const wasInserted = newDoc.length === originalLength + 1;
-
-      // Immediately remove the character to restore original state
-      if (wasInserted) {
-        const removeTransaction = editorView.state.update({
-          changes: { from: originalLength, to: originalLength + 1, insert: '' }
-        });
-        editorView.dispatch(removeTransaction);
-
-        Logger.debug('✓ Editor is EDITABLE - character insertion successful');
-        return true;
-      } else {
-        Logger.debug('✗ Editor is READ-ONLY - character insertion failed');
-        return false;
-      }
-    } catch (insertError) {
-      // If we can't insert, the editor is read-only
-      Logger.debug('✗ Editor is READ-ONLY - insertion threw error:', insertError.message);
-      return false;
-    }
-  } catch (e) {
-    Logger.debug('Error checking if editor is user editable:', e);
-    // If we can't determine, assume it's not editable to be safe
-    return false;
-  }
-}
-
-// Helper function to check if a tab button is the active (user's) tab
-function isActiveTab(tabButton) {
-  if (!tabButton) return false;
-
-  // Active tabs have 'text-white' class while inactive have 'text-gray-400'
-  const classes = tabButton.className || '';
-  return classes.includes('text-white');
-}
-
 // Extract code from all editor tabs with proper user code detection
 async function extractAllTabs(data) {
   // Find all tab buttons
@@ -1105,7 +1012,7 @@ async function extractAllTabs(data) {
 
   const codeFiles = [];
   let userCodeFileIndex = -1;
-  const initialActiveTabIndex = tabButtons.findIndex(b => isActiveTab(b.querySelector('button') || b));
+  let solutionFileName = null;
 
   // Process each tab
   for (let i = 0; i < tabButtons.length; i++) {
@@ -1117,12 +1024,10 @@ async function extractAllTabs(data) {
 
     // Wait just one animation frame for the DOM to update
     await waitForFrame();
-    // Additional small wait for editor to fully render
-    await new Promise(r => setTimeout(r, 100));
 
     // Find the main editor container (exclude merge view editors)
     const editor = await waitForElement(() => {
-      // First, check if we're in solution/merge view
+      // First, check if we're in solution/merge view - if so, skip to avoid confusion
       const mergeView = document.querySelector('.cm-mergeView');
       if (mergeView) {
         // In merge view, the LEFT editor is the user's code
@@ -1132,23 +1037,18 @@ async function extractAllTabs(data) {
         }
       }
 
-      // Not in merge view - find the currently visible editor
-      // Look for editors inside visible containers (style="" or no display:none)
-      const allContainers = document.querySelectorAll('.w-full.h-full-minus-tab-bar');
-      for (const container of allContainers) {
-        const style = container.getAttribute('style') || '';
-        // Skip hidden containers
-        if (style.includes('display: none') || style.includes('display:none')) {
-          continue;
-        }
+      // Not in merge view, find the main editor
+      // Look for editors that are NOT inside a merge view
+      const allEditors = document.querySelectorAll('.cm-content[role="textbox"]');
+      for (const ed of allEditors) {
+        // Skip if this editor is inside a merge view
+        if (ed.closest('.cm-mergeView')) continue;
 
-        // This container is visible - find its editor
-        const ed = container.querySelector('.cm-content[role="textbox"]');
-        if (ed && isEditorVisible(ed)) {
+        // This is a standalone editor - use it if visible
+        if (isEditorVisible(ed)) {
           return ed;
         }
       }
-
       return null;
     }, { timeout: Config.TIMEOUTS.TAB_SWITCH, checkInterval: Config.TIMEOUTS.VISIBILITY_POLL });
 
@@ -1173,11 +1073,8 @@ async function extractAllTabs(data) {
       }
     }
 
-    // Check if this is the user's editable code
-    const isUserEditable = isUserEditableEditor(editor);
-
-    // Also check if this was the initially active tab (with text-white)
-    const wasInitiallyActive = i === initialActiveTabIndex;
+    // Check if this editor is editable by the user
+    const isEditable = isEditorEditable(editor);
 
     // Extract code from this editor
     const code = await extractCodeFromEditor(editor);
@@ -1187,35 +1084,27 @@ async function extractAllTabs(data) {
       code: code,
       language: fileLanguage,
       isActive: i === tabButtons.findIndex(b => b === initialTab),
-      isUserEditable: isUserEditable,
-      wasInitiallyActive: wasInitiallyActive
+      isEditable: isEditable
     };
 
     codeFiles.push(fileData);
 
-    // Track the user's editable file
-    if (isUserEditable && userCodeFileIndex === -1) {
+    // Track the user's editable file (first editable one found, or prefer main/index)
+    if (isEditable && userCodeFileIndex === -1) {
       userCodeFileIndex = i;
-      Logger.extraction('USER CODE IDENTIFIED', {
-        file: fileName,
-        reason: 'Cursor present + visible container'
-      });
-    } else if (wasInitiallyActive && userCodeFileIndex === -1) {
-      // Fallback: Use initially active tab
+    } else if (isEditable && (fileName.includes('main') || fileName.includes('index')) && !fileName.includes('test')) {
+      // Prefer main/index files over other editable files
       userCodeFileIndex = i;
-      Logger.extraction('USER CODE IDENTIFIED (fallback)', {
-        file: fileName,
-        reason: 'Initially active tab (text-white)'
-      });
     }
 
-    console.log(`  ✅ Captured: ${fileName} (${fileLanguage}) - ${code.split('\n').length} lines${isUserEditable ? ' [USER EDITABLE ✓]' : wasInitiallyActive ? ' [INITIALLY ACTIVE]' : ' [READ-ONLY]'}`);
+    console.log(`  ✅ Captured: ${fileName} (${fileLanguage}) - ${code.split('\n').length} lines${isEditable ? ' [EDITABLE]' : ' [READ-ONLY]'}`);
   }
 
   // Return to initial tab
   if (initialTab) {
     console.log('\n🔙 Returning to initial tab...');
     initialTab.click();
+    // Wait for animation frame to complete for visual consistency
     await waitForFrame();
   }
 
@@ -1224,27 +1113,18 @@ async function extractAllTabs(data) {
 
   // Determine the correct "My Solution Attempt" file
   if (userCodeFileIndex !== -1) {
-    const userFile = codeFiles[userCodeFileIndex];
-    data.userCode = userFile.code;
-    data.language = userFile.language;
-
-    Logger.extraction('✅ My Solution Attempt set', {
-      file: userFile.fileName,
-      editable: userFile.isUserEditable,
-      lines: userFile.code.split('\n').length
+    data.userCode = codeFiles[userCodeFileIndex].code;
+    data.language = codeFiles[userCodeFileIndex].language;
+    Logger.extraction('User code file detected', {
+      file: codeFiles[userCodeFileIndex].fileName,
+      editable: true
     });
   } else {
-    // Ultimate fallback: Use first non-test file
-    const nonTestFile = codeFiles.find(f =>
-      !f.fileName.toLowerCase().includes('test') &&
-      !f.fileName.toLowerCase().includes('main.c') &&
-      !f.fileName.toLowerCase().includes('.h')
-    ) || codeFiles[0];
-
-    if (nonTestFile) {
-      data.userCode = nonTestFile.code;
-      data.language = nonTestFile.language;
-      Logger.warn('⚠️ Using fallback file for My Solution Attempt:', nonTestFile.fileName);
+    // Fallback: Use first file if no editable file found
+    if (codeFiles.length > 0) {
+      data.userCode = codeFiles[0].code;
+      data.language = codeFiles[0].language;
+      Logger.warn('No editable file found, using first file as fallback');
     }
   }
 }
@@ -1298,48 +1178,51 @@ async function extractSolution(data) {
   }
 }
 
-// Refine user code selection after solution is extracted
+// Refine user code after solution is extracted
 function refineUserCodeSelection(data) {
   if (!data.allFiles || data.allFiles.length === 0) {
     return;
   }
 
-  // Find files marked as user editable
-  const editableFiles = data.allFiles.filter(f => f.isUserEditable);
+  // If we have solution code, try to match the filename
+  if (data.solution && !data.solution.includes('not available')) {
+    // In merge view, the solution is typically in a file with the same name
+    // Try to find the user's version by looking for editable files
+    const editableFiles = data.allFiles.filter(f => f.isEditable);
 
-  if (editableFiles.length === 1) {
-    // Only one editable file - that's definitely the user's code
+    if (editableFiles.length === 1) {
+      // Only one editable file, that's definitely the user's code
+      data.userCode = editableFiles[0].code;
+      data.language = editableFiles[0].language;
+      Logger.extraction('User code refined based on editability', {
+        file: editableFiles[0].fileName
+      });
+      return;
+    }
+
+    // Multiple editable files, prefer main/index/solution files
+    const mainFile = editableFiles.find(f =>
+      (f.fileName.includes('main') || f.fileName.includes('index') || f.fileName.includes('solution'))
+      && !f.fileName.includes('test')
+    );
+
+    if (mainFile) {
+      data.userCode = mainFile.code;
+      data.language = mainFile.language;
+      Logger.extraction('User code refined based on filename pattern', {
+        file: mainFile.fileName
+      });
+      return;
+    }
+  }
+
+  // If no solution or couldn't determine from solution, use editability
+  const editableFiles = data.allFiles.filter(f => f.isEditable);
+  if (editableFiles.length > 0) {
     data.userCode = editableFiles[0].code;
     data.language = editableFiles[0].language;
-    Logger.extraction('✅ User code confirmed via editability', {
+    Logger.extraction('User code set to first editable file', {
       file: editableFiles[0].fileName
-    });
-    return;
-  }
-
-  if (editableFiles.length > 1) {
-    // Multiple editable files - prefer non-header, non-test files
-    const mainEditableFile = editableFiles.find(f =>
-      !f.fileName.endsWith('.h') &&
-      !f.fileName.toLowerCase().includes('test') &&
-      !f.fileName.toLowerCase().includes('main.c')
-    ) || editableFiles[0];
-
-    data.userCode = mainEditableFile.code;
-    data.language = mainEditableFile.language;
-    Logger.extraction('✅ User code refined from multiple editable files', {
-      file: mainEditableFile.fileName
-    });
-    return;
-  }
-
-  // If no editable files found, use initially active tab
-  const initiallyActiveFile = data.allFiles.find(f => f.wasInitiallyActive);
-  if (initiallyActiveFile) {
-    data.userCode = initiallyActiveFile.code;
-    data.language = initiallyActiveFile.language;
-    Logger.extraction('⚠️ User code set to initially active tab', {
-      file: initiallyActiveFile.fileName
     });
   }
 }
