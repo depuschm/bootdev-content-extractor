@@ -3,6 +3,7 @@
 > **Never lose your coding progress again!** Extract challenges, lessons, solutions, and chat conversations from [Boot.dev](https://boot.dev) and save them to Notion, Markdown, or JSON.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![GitHub](https://img.shields.io/badge/GitHub-Repository-black?logo=github)](https://github.com/depuschm/bootdev-content-extractor)
 [![Chrome Extension](https://img.shields.io/badge/Chrome-Download-blue)](https://chrome.google.com/webstore)
 [![Firefox Add-on](https://img.shields.io/badge/Firefox-Download-orange)](https://addons.mozilla.org)
 
