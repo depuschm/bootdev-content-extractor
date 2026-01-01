@@ -144,15 +144,8 @@ function formatData(data, format) {
       markdown += `**Type:** ${data.type}\n`;
       markdown += `**Exercise Type:** ${data.exerciseType}\n`;
       markdown += `**Language:** ${data.language || 'Unknown'}\n`;
-      if (hasRating) {
-        markdown += `**Rating:** ${'⭐'.repeat(data.rating)} (${data.rating}/5)\n`;
-      }
       markdown += `**URL:** ${data.url}\n`;
-      markdown += `**Extracted:** ${new Date(data.timestamp).toLocaleString()}\n\n`;
-    } else {
-      markdown += `**Type:** ${data.type}\n`;
-      markdown += `**Exercise Type:** ${data.exerciseType}\n`;
-      markdown += `**Language:** ${data.language || 'Unknown'}\n`;
+      markdown += `**Date:** ${new Date(data.timestamp).toLocaleString()}\n`;
       if (hasRating) {
         markdown += `**Rating:** ${'⭐'.repeat(data.rating)} (${data.rating}/5)\n`;
       }
@@ -300,15 +293,8 @@ function formatData(data, format) {
       text += `Type: ${data.type}\n`;
       text += `Exercise Type: ${data.exerciseType}\n`;
       text += `Language: ${data.language || 'Unknown'}\n`;
-      if (hasRating) {
-        text += `Rating: ${data.rating}/5 stars\n`;
-      }
       text += `URL: ${data.url}\n`;
-      text += `Extracted: ${new Date(data.timestamp).toLocaleString()}\n\n`;
-    } else {
-      text += `Type: ${data.type}\n`;
-      text += `Exercise Type: ${data.exerciseType}\n`;
-      text += `Language: ${data.language || 'Unknown'}\n`;
+      text += `Date: ${new Date(data.timestamp).toLocaleString()}\n`;
       if (hasRating) {
         text += `Rating: ${data.rating}/5 stars\n`;
       }
