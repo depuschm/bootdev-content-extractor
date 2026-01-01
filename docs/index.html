@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>⚡ Boot.dev Content Extractor - Never Lose Your Coding Progress Again!</title>
+  <meta name="description" content="Extract challenges, lessons, solutions, and chat conversations from Boot.dev and save them to Notion, Markdown, or JSON. Open source browser extension for Chrome and Firefox.">
+  <style>
+    :root {
+      --gray-50: #f5f7f9;
+      --gray-200: #d7dee6;
+      --gray-400: #919dab;
+      --gray-500: #6e7888;
+      --gray-600: #4e5564;
+      --gray-700: #3c424f;
+      --gray-750: #323845;
+      --gray-800: #252936;
+      --gray-850: #202330;
+      --gray-900: #181b26;
+      --gray-950: #121620;
+      --yellow-300: #f6bd45;
+      --yellow-400: #e5ae3c;
+      --yellow-500: #efbb03;
+      --yellow-600: #c18500;
+      --yellow-700: #905a0a;
+      --blue-500: #5865f2;
+      --blue-600: #4752c4;
+      --green-500: #11e956;
+      --green-600: #0db543;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background-color: var(--gray-900);
+      color: var(--gray-200);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+
+    /* Header */
+    header {
+      background: linear-gradient(180deg, var(--gray-800) 0%, var(--gray-850) 100%);
+      border-bottom: 1px solid var(--gray-700);
+      padding: 20px 0;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(10px);
+    }
+
+    .header-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--yellow-500);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 24px;
+      align-items: center;
+    }
+
+    .nav-links a {
+      color: var(--gray-400);
+      text-decoration: none;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover {
+      color: var(--yellow-500);
+    }
+
+    .btn-primary {
+      background: linear-gradient(180deg, var(--yellow-400) 0%, var(--yellow-600) 100%);
+      color: var(--gray-950);
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: all 0.2s;
+      border: 2px solid var(--yellow-700);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(239, 187, 3, 0.3);
+    }
+
+    /* Hero Section */
+    .hero {
+      padding: 80px 0 60px;
+      text-align: center;
+      background: linear-gradient(180deg, var(--gray-850) 0%, var(--gray-900) 100%);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 800px;
+      height: 800px;
+      background: radial-gradient(circle, rgba(239, 187, 3, 0.1) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .hero h1 {
+      font-size: 56px;
+      font-weight: 900;
+      margin-bottom: 20px;
+      background: linear-gradient(135deg, var(--yellow-500) 0%, var(--yellow-300) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      position: relative;
+    }
+
+    .hero .subtitle {
+      font-size: 24px;
+      color: var(--gray-400);
+      margin-bottom: 40px;
+      max-width: 700px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .hero-buttons {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 14px 32px;
+      border-radius: 8px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: all 0.3s;
+      font-size: 16px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-hero {
+      background: linear-gradient(180deg, var(--yellow-400) 0%, var(--yellow-600) 100%);
+      color: var(--gray-950);
+      border: 2px solid var(--yellow-700);
+    }
+
+    .btn-hero:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 24px rgba(239, 187, 3, 0.4);
+    }
+
+    .btn-secondary {
+      background: var(--gray-800);
+      color: var(--gray-200);
+      border: 2px solid var(--gray-700);
+    }
+
+    .btn-secondary:hover {
+      background: var(--gray-750);
+      border-color: var(--gray-600);
+      transform: translateY(-3px);
+    }
+
+    /* Features Section */
+    .features {
+      padding: 80px 0;
+      background: var(--gray-900);
+    }
+
+    .section-title {
+      text-align: center;
+      font-size: 42px;
+      font-weight: 800;
+      margin-bottom: 16px;
+      color: var(--yellow-500);
+    }
+
+    .section-subtitle {
+      text-align: center;
+      font-size: 18px;
+      color: var(--gray-400);
+      margin-bottom: 60px;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 24px;
+      margin-bottom: 60px;
+    }
+
+    .feature-card {
+      background: linear-gradient(180deg, var(--gray-850) 0%, var(--gray-800) 100%);
+      border: 1px solid var(--gray-700);
+      border-radius: 12px;
+      padding: 32px;
+      transition: all 0.3s;
+    }
+
+    .feature-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+      border-color: var(--yellow-700);
+    }
+
+    .feature-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+      display: block;
+    }
+
+    .feature-card h3 {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      color: var(--gray-200);
+    }
+
+    .feature-card p {
+      color: var(--gray-400);
+      line-height: 1.6;
+    }
+
+    .feature-card ul {
+      list-style: none;
+      margin-top: 12px;
+    }
+
+    .feature-card li {
+      padding-left: 24px;
+      position: relative;
+      margin-bottom: 8px;
+      color: var(--gray-400);
+    }
+
+    .feature-card li::before {
+      content: '✓';
+      position: absolute;
+      left: 0;
+      color: var(--green-500);
+      font-weight: bold;
+    }
+
+    /* Installation Section */
+    .installation {
+      padding: 80px 0;
+      background: linear-gradient(180deg, var(--gray-900) 0%, var(--gray-850) 100%);
+    }
+
+    .install-options {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 24px;
+      margin-bottom: 40px;
+    }
+
+    .install-card {
+      background: var(--gray-800);
+      border: 2px solid var(--gray-700);
+      border-radius: 12px;
+      padding: 32px;
+      text-align: center;
+      transition: all 0.3s;
+    }
+
+    .install-card:hover {
+      border-color: var(--yellow-600);
+      transform: translateY(-4px);
+    }
+
+    .install-card .browser-icon {
+      font-size: 64px;
+      margin-bottom: 16px;
+    }
+
+    .install-card h3 {
+      font-size: 24px;
+      margin-bottom: 16px;
+      color: var(--gray-200);
+    }
+
+    .install-card .btn {
+      width: 100%;
+      justify-content: center;
+    }
+
+    /* Setup Section */
+    .setup {
+      padding: 80px 0;
+      background: var(--gray-900);
+    }
+
+    .setup-steps {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .step {
+      background: var(--gray-850);
+      border: 1px solid var(--gray-700);
+      border-left: 4px solid var(--yellow-500);
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+
+    .step-number {
+      display: inline-block;
+      background: var(--yellow-500);
+      color: var(--gray-950);
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      text-align: center;
+      line-height: 32px;
+      font-weight: 700;
+      margin-right: 12px;
+    }
+
+    .step h3 {
+      display: inline;
+      font-size: 20px;
+      color: var(--gray-200);
+    }
+
+    .step p {
+      margin-top: 12px;
+      color: var(--gray-400);
+      padding-left: 44px;
+    }
+
+    .step code {
+      background: var(--gray-900);
+      padding: 2px 8px;
+      border-radius: 4px;
+      color: var(--yellow-500);
+      font-family: 'Courier New', monospace;
+    }
+
+    /* FAQ Section */
+    .faq {
+      padding: 80px 0;
+      background: var(--gray-850);
+    }
+
+    .faq-list {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .faq-item {
+      background: var(--gray-800);
+      border: 1px solid var(--gray-700);
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 16px;
+    }
+
+    .faq-item h3 {
+      color: var(--yellow-500);
+      font-size: 18px;
+      margin-bottom: 12px;
+    }
+
+    .faq-item p {
+      color: var(--gray-400);
+    }
+
+    /* CTA Section */
+    .cta {
+      padding: 80px 0;
+      background: linear-gradient(135deg, var(--gray-900) 0%, var(--gray-850) 100%);
+      text-align: center;
+    }
+
+    .cta h2 {
+      font-size: 42px;
+      font-weight: 800;
+      margin-bottom: 20px;
+      color: var(--yellow-500);
+    }
+
+    .cta p {
+      font-size: 20px;
+      color: var(--gray-400);
+      margin-bottom: 40px;
+    }
+
+    /* Footer */
+    footer {
+      background: var(--gray-950);
+      border-top: 1px solid var(--gray-800);
+      padding: 40px 0;
+      text-align: center;
+    }
+
+    .footer-links {
+      display: flex;
+      justify-content: center;
+      gap: 32px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+
+    .footer-links a {
+      color: var(--gray-400);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .footer-links a:hover {
+      color: var(--yellow-500);
+    }
+
+    .footer-text {
+      color: var(--gray-500);
+      font-size: 14px;
+    }
+
+    .footer-text strong {
+      color: var(--yellow-500);
+    }
+
+    /* Badges */
+    .badges {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin: 40px 0;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      background: var(--gray-800);
+      border: 1px solid var(--gray-700);
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 14px;
+      color: var(--gray-400);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .badge-icon {
+      font-size: 18px;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .hero h1 {
+        font-size: 36px;
+      }
+
+      .hero .subtitle {
+        font-size: 18px;
+      }
+
+      .section-title {
+        font-size: 32px;
+      }
+
+      .nav-links {
+        display: none;
+      }
+
+      .features-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Animations */
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .feature-card, .step, .faq-item {
+      animation: fadeInUp 0.6s ease-out;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 12px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--gray-900);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--gray-700);
+      border-radius: 6px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--gray-600);
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header>
+    <div class="container">
+      <div class="header-content">
+        <a href="#" class="logo">
+          ⚡ Boot.dev Content Extractor
+        </a>
+        <nav class="nav-links">
+          <a href="#features">Features</a>
+          <a href="#installation">Install</a>
+          <a href="#setup">Setup</a>
+          <a href="#faq">FAQ</a>
+          <a href="https://github.com/depuschm/bootdev-content-extractor" target="_blank" class="btn-primary">
+            View on GitHub
+          </a>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="container">
+      <h1>Never Lose Your Coding Progress Again!</h1>
+      <p class="subtitle">
+        Extract challenges, lessons, solutions, and AI chat conversations from Boot.dev 
+        and save them to Notion, Markdown, or JSON.
+      </p>
+
+      <div class="badges">
+        <span class="badge">
+          <span class="badge-icon">✓</span>
+          MIT Licensed
+        </span>
+        <span class="badge">
+          <span class="badge-icon">🔒</span>
+          100% Private
+        </span>
+        <span class="badge">
+          <span class="badge-icon">⚡</span>
+          Open Source
+        </span>
+        <span class="badge">
+          <span class="badge-icon">🌐</span>
+          Chrome & Firefox
+        </span>
+      </div>
+
+      <div class="hero-buttons">
+        <a href="https://chrome.google.com/webstore" class="btn btn-hero">
+          📥 Install for Chrome
+        </a>
+        <a href="https://addons.mozilla.org" class="btn btn-hero">
+          🦊 Install for Firefox
+        </a>
+        <a href="https://github.com/depuschm/bootdev-content-extractor" class="btn btn-secondary">
+          📖 View Documentation
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section id="features" class="features">
+    <div class="container">
+      <h2 class="section-title">Powerful Features for Learners</h2>
+      <p class="section-subtitle">
+        Everything you need to backup, organize, and reference your coding journey
+      </p>
+
+      <div class="features-grid">
+        <div class="feature-card">
+          <span class="feature-icon">📚</span>
+          <h3>Complete Content Extraction</h3>
+          <p>Extract every type of Boot.dev exercise:</p>
+          <ul>
+            <li>Coding challenges with all files</li>
+            <li>Interview exercises with transcripts</li>
+            <li>Multiple choice questions</li>
+            <li>Free-text exercises</li>
+            <li>CLI exercises</li>
+            <li>Lesson content with formatting</li>
+          </ul>
+        </div>
+
+        <div class="feature-card">
+          <span class="feature-icon">🎯</span>
+          <h3>Smart Features</h3>
+          <p>Intelligent extraction that makes your life easier:</p>
+          <ul>
+            <li>Auto-reveal solutions before extraction</li>
+            <li>Multi-file code support</li>
+            <li>Chat history with Boots AI</li>
+            <li>Preserves code blocks & formatting</li>
+            <li>Challenge ratings (1-5 stars)</li>
+          </ul>
+        </div>
+
+        <div class="feature-card">
+          <span class="feature-icon">📤</span>
+          <h3>Flexible Export Options</h3>
+          <p>Save your content exactly how you want it:</p>
+          <ul>
+            <li>Direct Notion integration</li>
+            <li>Markdown files (.md)</li>
+            <li>JSON for developers</li>
+            <li>Plain text (.txt)</li>
+            <li>Copy to clipboard</li>
+          </ul>
+        </div>
+
+        <div class="feature-card">
+          <span class="feature-icon">⚙️</span>
+          <h3>Fully Customizable</h3>
+          <p>Tailor the extension to your workflow:</p>
+          <ul>
+            <li>Multiple Notion databases</li>
+            <li>Toggle solution extraction</li>
+            <li>Include/exclude metadata</li>
+            <li>Choose export format</li>
+            <li>Enable/disable chat extraction</li>
+          </ul>
+        </div>
+
+        <div class="feature-card">
+          <span class="feature-icon">🔗</span>
+          <h3>Notion Integration</h3>
+          <p>Build your personal knowledge base:</p>
+          <ul>
+            <li>Send directly to Notion databases</li>
+            <li>Organize by exercise type</li>
+            <li>Searchable archive</li>
+            <li>Rich formatting preserved</li>
+            <li>Auto-categorization</li>
+          </ul>
+        </div>
+
+        <div class="feature-card">
+          <span class="feature-icon">🔒</span>
+          <h3>Privacy First</h3>
+          <p>Your data stays yours:</p>
+          <ul>
+            <li>No tracking or analytics</li>
+            <li>100% local processing</li>
+            <li>Open source code</li>
+            <li>Optional Notion integration</li>
+            <li>No external servers</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Installation Section -->
+  <section id="installation" class="installation">
+    <div class="container">
+      <h2 class="section-title">Quick Installation</h2>
+      <p class="section-subtitle">Get started in seconds on your favorite browser</p>
+
+      <div class="install-options">
+        <div class="install-card">
+          <div class="browser-icon">🌐</div>
+          <h3>Chrome / Edge / Brave</h3>
+          <a href="https://chrome.google.com/webstore" class="btn btn-hero">
+            Install Extension
+          </a>
+        </div>
+
+        <div class="install-card">
+          <div class="browser-icon">🦊</div>
+          <h3>Firefox</h3>
+          <a href="https://addons.mozilla.org" class="btn btn-hero">
+            Install Add-on
+          </a>
+        </div>
+
+        <div class="install-card">
+          <div class="browser-icon">💻</div>
+          <h3>Manual Install</h3>
+          <a href="https://github.com/depuschm/bootdev-content-extractor" class="btn btn-secondary">
+            View Guide
+          </a>
+        </div>
+      </div>
+
+      <div class="step">
+        <h3>🚀 After Installation:</h3>
+        <p>
+          1. Navigate to any Boot.dev challenge or lesson<br>
+          2. Click the extension icon (⚡)<br>
+          3. Click "Extract Content"<br>
+          4. Choose to download, copy, or send to Notion
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Setup Section -->
+  <section id="setup" class="setup">
+    <div class="container">
+      <h2 class="section-title">Notion Integration Setup</h2>
+      <p class="section-subtitle">Optional: Transform your Boot.dev learning into a searchable knowledge base</p>
+
+      <div class="setup-steps">
+        <div class="step">
+          <span class="step-number">1</span>
+          <h3>Create Notion Integration</h3>
+          <p>
+            Go to <code>notion.so/my-integrations</code> → Click "+ New integration" → 
+            Copy your <code>Internal Integration Secret</code> (starts with <code>ntn_</code>)
+          </p>
+        </div>
+
+        <div class="step">
+          <span class="step-number">2</span>
+          <h3>Create Notion Databases</h3>
+          <p>
+            Create databases for different exercise types. Recommended properties:<br>
+            • Type (Select): Challenge, Lesson<br>
+            • Exercise Type (Select): Coding, Interview, Multiple Choice, etc.<br>
+            • Language (Select): Python, JavaScript, Go, etc.<br>
+            • URL (URL), Date (Date), Rating (Number)
+          </p>
+        </div>
+
+        <div class="step">
+          <span class="step-number">3</span>
+          <h3>Connect Databases</h3>
+          <p>
+            For each database: Open in Notion → Click "..." menu → 
+            "+ Add connections" → Select your integration
+          </p>
+        </div>
+
+        <div class="step">
+          <span class="step-number">4</span>
+          <h3>Get Database IDs</h3>
+          <p>
+            Open each database as a full page → Copy the 32-character code from the URL<br>
+            Example: <code>notion.so/workspace/DATABASE_ID?v=...</code>
+          </p>
+        </div>
+
+        <div class="step">
+          <span class="step-number">5</span>
+          <h3>Configure Extension</h3>
+          <p>
+            Click extension icon → "Options" → Enable "Notion integration" → 
+            Paste your Integration Secret → Add databases with their IDs → 
+            Click "Test Notion Connection" → Save Settings
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ Section -->
+  <section id="faq" class="faq">
+    <div class="container">
+      <h2 class="section-title">Frequently Asked Questions</h2>
+      <p class="section-subtitle">Everything you need to know about the extension</p>
+
+      <div class="faq-list">
+        <div class="faq-item">
+          <h3>Q: Do I need a Notion account?</h3>
+          <p>No! You can export to Markdown, JSON, or plain text without Notion. Notion integration is completely optional.</p>
+        </div>
+
+        <div class="faq-item">
+          <h3>Q: Can I use multiple Notion databases?</h3>
+          <p>Yes! Configure different databases for challenges, lessons, and other types. The extension automatically routes content to the right database.</p>
+        </div>
+
+        <div class="faq-item">
+          <h3>Q: Does this work with all Boot.dev content?</h3>
+          <p>Yes! It extracts any challenge or lesson you have access to. If you don't have access to the solution, it simply won't be extracted.</p>
+        </div>
+
+        <div class="faq-item">
+          <h3>Q: Is my data safe?</h3>
+          <p>Absolutely. Nothing is collected or sent anywhere except your chosen Notion database. All processing happens locally in your browser. The extension is open source for full transparency.</p>
+        </div>
+
+        <div class="faq-item">
+          <h3>Q: Can I customize the export format?</h3>
+          <p>Currently Markdown, JSON, and plain text are supported. Custom templates are coming soon! You can always fork the project and customize it yourself.</p>
+        </div>
+
+        <div class="faq-item">
+          <h3>Q: Does it work on mobile?</h3>
+          <p>The extension works on desktop browsers (Chrome, Firefox, Edge, Brave). Mobile browser extensions have limited support, but you can use the manual installation method on compatible mobile browsers.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Section -->
+  <section class="cta">
+    <div class="container">
+      <h2>Ready to Safeguard Your Learning?</h2>
+      <p>Join learners who never lose their coding progress again</p>
+      <div class="hero-buttons">
+        <a href="https://chrome.google.com/webstore" class="btn btn-hero">
+          Install Now for Free
+        </a>
+        <a href="https://github.com/depuschm/bootdev-content-extractor" class="btn btn-secondary">
+          ⭐ Star on GitHub
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container">
+      <div class="footer-links">
+        <a href="https://github.com/depuschm/bootdev-content-extractor">GitHub</a>
+        <a href="https://github.com/depuschm/bootdev-content-extractor/issues">Report Issue</a>
+        <a href="https://depuschm.github.io/bootdev-content-extractor/privacy-policy.html">Privacy Policy</a>
+        <a href="https://dietmarpuschmann.com/contact">Contact</a>
+        <a href="https://boot.dev/u/depuschm">Boot.dev Profile</a>
+        <a href="https://www.buymeacoffee.com/depuschm">☕ Buy Me a Coffee</a>
+      </div>
+      <p class="footer-text">
+        Made with ❤️ by <strong>@depuschm</strong> for Boot.dev learners<br>
+        Licensed under MIT • v1.2.0 • Open Source
+      </p>
+    </div>
+  </footer>
+</body>
+</html>
