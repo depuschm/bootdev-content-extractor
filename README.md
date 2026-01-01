@@ -3,8 +3,8 @@
 > **Never lose your coding progress again!** Extract challenges, lessons, solutions, and chat conversations from [Boot.dev](https://boot.dev) and save them to Notion, Markdown, or JSON.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Firefox Add-on](https://img.shields.io/badge/Firefox-Download-orange)](https://addons.mozilla.org)
 [![Chrome Extension](https://img.shields.io/badge/Chrome-Download-blue)](https://chrome.google.com/webstore)
+[![Firefox Add-on](https://img.shields.io/badge/Firefox-Download-orange)](https://addons.mozilla.org)
 
 ---
 
@@ -42,10 +42,6 @@
 
 ## 🚀 Installation
 
-### Firefox
-1. Download from [Firefox Add-ons](https://addons.mozilla.org) (coming soon)
-2. Or install manually: `about:debugging` → Load Temporary Add-on → Select `manifest.json`
-
 ### Chrome / Edge / Brave
 1. Download from [Chrome Web Store](https://chrome.google.com/webstore) (coming soon)
 2. Or install manually:
@@ -53,6 +49,10 @@
    - Enable "Developer mode"
    - Click "Load unpacked"
    - Select the extension folder
+
+### Firefox
+1. Download from [Firefox Add-ons](https://addons.mozilla.org) (coming soon)
+2. Or install manually: `about:debugging` → Load Temporary Add-on → Select `manifest.json`
 
 ---
 
@@ -148,7 +148,6 @@ The extension automatically matches content type to database. If no match is fou
 - Title and description with rich formatting
 - All requirements and examples
 - Multiple code files (if tabs exist)
-- Your solution attempt
 - Official solution (if unlocked)
 - Chat conversations with Boots
 - Star rating
@@ -200,12 +199,9 @@ Access via **Options** button in the popup:
 
 ## 🛠️ Technical Details
 
-### Supported Languages
-Python, JavaScript, TypeScript, Go, SQL, C, C++, Rust, Java, Shell, and more!
-
 ### Browser Compatibility
-- ✅ Firefox 109+
 - ✅ Chrome/Chromium
+- ✅ Firefox 109+
 - ✅ Edge
 - ✅ Brave
 - ✅ Any Chromium-based browser
@@ -237,8 +233,8 @@ Contributions are welcome! Here's how:
 ### Development Setup
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/bootdev-extractor.git
-cd bootdev-extractor
+git clone https://github.com/depuschm/bootdev-content-extractor.git
+cd bootdev-content-extractor
 
 # Load in browser
 # Firefox: about:debugging → Load Temporary Add-on → manifest.json
@@ -255,7 +251,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🐛 Bug Reports & Feature Requests
 
-Found a bug? Have an idea? [Open an issue](https://github.com/yourusername/bootdev-extractor/issues)!
+Found a bug? Have an idea? [Open an issue](https://github.com/depuschm/bootdev-content-extractor/issues)!
 
 ---
 
@@ -264,7 +260,7 @@ Found a bug? Have an idea? [Open an issue](https://github.com/yourusername/bootd
 If this extension helped you, consider:
 - ⭐ **Starring** this repository
 - 🐦 **Sharing** with fellow Boot.dev learners
-- ☕ **Buying me a coffee** (link coming soon!)
+- ☕ **Buying me a [coffee](https://www.buymeacoffee.com/depuschm)**
 
 ---
 
@@ -276,11 +272,11 @@ A: No! You can export to Markdown, JSON, or plain text without Notion.
 **Q: Can I use multiple Notion databases?**  
 A: Yes! Configure different databases for challenges, lessons, and other types.
 
-**Q: Does this work with paid Boot.dev content?**  
-A: Yes, it extracts any challenge or lesson you have access to.
+**Q: Does this work with any Boot.dev content?**  
+A: Yes! It extracts any challenge or lesson you have access to. If you don't have access to the solution, the solution will not be extracted.
 
 **Q: Is my data safe?**  
-A: Absolutely. Nothing is collected or sent anywhere except your chosen Notion database.
+A: Absolutely. Nothing is collected or sent anywhere except your chosen Notion database. The extension does not read the local storage either were cached exercises are stored.
 
 **Q: Can I customize the export format?**  
 A: Currently Markdown, JSON, and plain text are supported. Custom templates coming soon!
@@ -297,6 +293,6 @@ Made with ❤️ by a Boot.dev student, for Boot.dev students.
 
 ## 📬 Contact
 
-- GitHub: [@yourusername](https://github.com/yourusername)
-- Email: your.email@example.com
-- Boot.dev: [@yourbootdevusername](https://boot.dev/u/yourbootdevusername)
+- GitHub: [@depuschm](https://github.com/depuschm)
+- Email: depuschm@gmx.de
+- Boot.dev: [@depuschm](https://boot.dev/u/depuschm)
