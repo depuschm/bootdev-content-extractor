@@ -3,6 +3,7 @@
   "name": "Boot.dev Content Extractor",
   "version": "1.2.0",
   "description": "Never lose your coding progress again! Extract challenges, lessons, solutions, and chat conversations from Boot.dev and save them to Notion, Markdown, or JSON.",
+  "homepage_url": "https://github.com/depuschm/bootdev-content-extractor",
   "permissions": [
     "activeTab",
     "storage"

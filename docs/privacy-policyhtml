@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy - Boot.dev Content Extractor</title>
+  <style>
+    :root {
+      --gray-900: #181b26;
+      --gray-800: #252936;
+      --gray-200: #d7dee6;
+      --gray-400: #919dab;
+      --yellow-500: #efbb03;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--gray-900);
+      color: var(--gray-200);
+      line-height: 1.6;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+    
+    h1 {
+      color: var(--yellow-500);
+      border-bottom: 2px solid var(--gray-800);
+      padding-bottom: 10px;
+    }
+    
+    h2 {
+      color: var(--yellow-500);
+      margin-top: 30px;
+    }
+    
+    a {
+      color: #5865f2;
+      text-decoration: none;
+    }
+    
+    a:hover {
+      text-decoration: underline;
+    }
+    
+    code {
+      background: var(--gray-800);
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 0.9em;
+    }
+    
+    .last-updated {
+      color: var(--gray-400);
+      font-style: italic;
+      margin-bottom: 30px;
+    }
+    
+    ul {
+      margin: 10px 0;
+      padding-left: 30px;
+    }
+    
+    li {
+      margin: 8px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>Privacy Policy - Boot.dev Content Extractor</h1>
+  <p class="last-updated">Last Updated: January 2026</p>
+
+  <h2>Overview</h2>
+  <p>Boot.dev Content Extractor is committed to protecting your privacy. This extension operates entirely locally in your browser and does not collect, store, or transmit any personal data to external servers owned by us.</p>
+
+  <h2>Data Collection</h2>
+  <p>We do <strong>NOT</strong> collect or store:</p>
+  <ul>
+    <li>Personal information</li>
+    <li>Usage statistics</li>
+    <li>Analytics data</li>
+    <li>Browsing history</li>
+    <li>Any data from Boot.dev pages</li>
+  </ul>
+
+  <h2>What Data We Access</h2>
+  <p><strong>Boot.dev Page Content:</strong> The extension reads content from Boot.dev pages you visit to extract challenges, lessons, and code. This data is processed locally in your browser and is never sent to our servers (we don't have any servers).</p>
+  
+  <p><strong>User Settings:</strong> Your preferences (export format, Notion configuration) are stored locally using your browser's storage API.</p>
+
+  <h2>Notion Integration (Optional)</h2>
+  <p>If you choose to enable Notion integration:</p>
+  <ul>
+    <li>Your Notion API token is stored <strong>locally</strong> in your browser's encrypted storage</li>
+    <li>The token is <strong>only</strong> sent directly to Notion's official API (<code>api.notion.com</code>) when you explicitly click "Send to Notion"</li>
+    <li>We never have access to your token or your Notion data</li>
+    <li>All communication with Notion is direct from your browser to their servers</li>
+  </ul>
+  
+  <p>Notion's handling of your data is governed by <a href="https://www.notion.so/Privacy-Policy" target="_blank" rel="noopener">Notion's Privacy Policy</a>.</p>
+
+  <h2>Local Data Storage</h2>
+  <p>All data is stored locally in your browser using standard browser storage APIs:</p>
+  <ul>
+    <li>Extension settings and preferences</li>
+    <li>Notion API credentials (if provided)</li>
+    <li>Export format preferences</li>
+  </ul>
+  <p>This data remains on your device and can be cleared by uninstalling the extension or clearing browser data.</p>
+
+  <h2>Permissions Explanation</h2>
+  <p>The extension requires these permissions:</p>
+  <ul>
+    <li><code>activeTab</code> - Read content from the Boot.dev page you're currently viewing</li>
+    <li><code>storage</code> - Save your settings locally in your browser</li>
+    <li><code>boot.dev/*</code> - Access Boot.dev pages for content extraction</li>
+    <li><code>api.notion.com/*</code> - Send data to Notion (only when you enable this feature)</li>
+  </ul>
+
+  <h2>Third-Party Services</h2>
+  <p><strong>Notion API:</strong> If you enable Notion integration, extracted content is sent directly from your browser to your Notion workspace. This is optional and user-initiated.</p>
+  
+  <p><strong>Boot.dev:</strong> The extension reads publicly displayed content from pages you visit while logged into Boot.dev. We don't access any data you haven't already loaded in your browser.</p>
+
+  <h2>Data Security</h2>
+  <ul>
+    <li>All sensitive data (like Notion tokens) is stored using browser-provided encryption</li>
+    <li>No data is transmitted to third parties except Notion (when you choose to use that feature)</li>
+    <li>The extension is open source - you can audit the code at <a href="https://github.com/depuschm/bootdev-content-extractor" target="_blank" rel="noopener">GitHub</a></li>
+  </ul>
+
+  <h2>Children's Privacy</h2>
+  <p>This extension is not intended for children under 13. We do not knowingly collect information from children.</p>
+
+  <h2>Changes to This Policy</h2>
+  <p>We may update this privacy policy occasionally. Changes will be posted with an updated "Last Updated" date. Continued use of the extension after changes constitutes acceptance of the updated policy.</p>
+
+  <h2>Your Rights</h2>
+  <p>You have the right to:</p>
+  <ul>
+    <li>View all data stored by the extension (accessible in browser DevTools)</li>
+    <li>Delete all stored data (uninstall the extension or clear browser data)</li>
+    <li>Opt out of optional features (like Notion integration)</li>
+  </ul>
+
+  <h2>Contact</h2>
+  <p>For questions or concerns about this privacy policy:</p>
+  <ul>
+    <li>GitHub Issues: <a href="https://github.com/depuschm/bootdev-content-extractor/issues" target="_blank" rel="noopener">Report an issue</a></li>
+    <li>Contact Form: <a href="https://dietmarpuschmann.com/contact" target="_blank" rel="noopener">dietmarpuschmann.com/contact</a></li>
+  </ul>
+
+  <h2>Open Source</h2>
+  <p>This extension is open source software. You can review the complete source code at:</p>
+  <p><a href="https://github.com/depuschm/bootdev-content-extractor" target="_blank" rel="noopener">https://github.com/depuschm/bootdev-content-extractor</a></p>
+
+  <hr style="margin: 40px 0; border: none; border-top: 1px solid var(--gray-800);">
+  <p style="text-align: center; color: var(--gray-400); font-size: 0.9em;">
+    Boot.dev Content Extractor v1.2.0<br>
+    Licensed under MIT License
+  </p>
+</body>
+</html>
