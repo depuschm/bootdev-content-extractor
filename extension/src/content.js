@@ -462,6 +462,7 @@ async function extractContent() {
       data.solution = Config.MESSAGES.SOLUTION_NOT_AVAILABLE;
     } else {
       await extractSolution(data);
+      refineUserCodeSelection(data);
     }
   }
 
@@ -996,7 +997,7 @@ async function extractViewerContent(data) {
   });
 }
 
-// Extract code from all editor tabs
+// Extract code from all editor tabs with proper user code detection
 async function extractAllTabs(data) {
   // Find all tab buttons
   const tabButtons = Array.from(document.querySelectorAll('ul[role="tablist"] button'));
@@ -1010,6 +1011,8 @@ async function extractAllTabs(data) {
   console.log(`Found ${tabButtons.length} tabs`);
 
   const codeFiles = [];
+  let userCodeFileIndex = -1;
+  let solutionFileName = null;
 
   // Process each tab
   for (let i = 0; i < tabButtons.length; i++) {
@@ -1070,17 +1073,31 @@ async function extractAllTabs(data) {
       }
     }
 
+    // Check if this editor is editable by the user
+    const isEditable = isEditorEditable(editor);
+
     // Extract code from this editor
     const code = await extractCodeFromEditor(editor);
 
-    codeFiles.push({
+    const fileData = {
       fileName: fileName,
       code: code,
       language: fileLanguage,
-      isActive: i === tabButtons.findIndex(b => b === initialTab)
-    });
+      isActive: i === tabButtons.findIndex(b => b === initialTab),
+      isEditable: isEditable
+    };
 
-    console.log(`  ✅ Captured: ${fileName} (${fileLanguage}) - ${code.split('\n').length} lines`);
+    codeFiles.push(fileData);
+
+    // Track the user's editable file (first editable one found, or prefer main/index)
+    if (isEditable && userCodeFileIndex === -1) {
+      userCodeFileIndex = i;
+    } else if (isEditable && (fileName.includes('main') || fileName.includes('index')) && !fileName.includes('test')) {
+      // Prefer main/index files over other editable files
+      userCodeFileIndex = i;
+    }
+
+    console.log(`  ✅ Captured: ${fileName} (${fileLanguage}) - ${code.split('\n').length} lines${isEditable ? ' [EDITABLE]' : ' [READ-ONLY]'}`);
   }
 
   // Return to initial tab
@@ -1093,6 +1110,23 @@ async function extractAllTabs(data) {
 
   // Store all files
   data.allFiles = codeFiles;
+
+  // Determine the correct "My Solution Attempt" file
+  if (userCodeFileIndex !== -1) {
+    data.userCode = codeFiles[userCodeFileIndex].code;
+    data.language = codeFiles[userCodeFileIndex].language;
+    Logger.extraction('User code file detected', {
+      file: codeFiles[userCodeFileIndex].fileName,
+      editable: true
+    });
+  } else {
+    // Fallback: Use first file if no editable file found
+    if (codeFiles.length > 0) {
+      data.userCode = codeFiles[0].code;
+      data.language = codeFiles[0].language;
+      Logger.warn('No editable file found, using first file as fallback');
+    }
+  }
 }
 
 // Extract solution code if available (for coding exercises)
@@ -1141,6 +1175,134 @@ async function extractSolution(data) {
   } catch (e) {
     console.log('Could not extract solution:', e);
     data.solution = 'Solution extraction failed';
+  }
+}
+
+// Refine user code after solution is extracted
+function refineUserCodeSelection(data) {
+  if (!data.allFiles || data.allFiles.length === 0) {
+    return;
+  }
+
+  // If we have solution code, try to match the filename
+  if (data.solution && !data.solution.includes('not available')) {
+    // In merge view, the solution is typically in a file with the same name
+    // Try to find the user's version by looking for editable files
+    const editableFiles = data.allFiles.filter(f => f.isEditable);
+
+    if (editableFiles.length === 1) {
+      // Only one editable file, that's definitely the user's code
+      data.userCode = editableFiles[0].code;
+      data.language = editableFiles[0].language;
+      Logger.extraction('User code refined based on editability', {
+        file: editableFiles[0].fileName
+      });
+      return;
+    }
+
+    // Multiple editable files, prefer main/index/solution files
+    const mainFile = editableFiles.find(f =>
+      (f.fileName.includes('main') || f.fileName.includes('index') || f.fileName.includes('solution'))
+      && !f.fileName.includes('test')
+    );
+
+    if (mainFile) {
+      data.userCode = mainFile.code;
+      data.language = mainFile.language;
+      Logger.extraction('User code refined based on filename pattern', {
+        file: mainFile.fileName
+      });
+      return;
+    }
+  }
+
+  // If no solution or couldn't determine from solution, use editability
+  const editableFiles = data.allFiles.filter(f => f.isEditable);
+  if (editableFiles.length > 0) {
+    data.userCode = editableFiles[0].code;
+    data.language = editableFiles[0].language;
+    Logger.extraction('User code set to first editable file', {
+      file: editableFiles[0].fileName
+    });
+  }
+}
+
+// Check if an editor is editable by the user
+function isEditorEditable(editor) {
+  try {
+    // Method 1: Check if contenteditable is true
+    const contentEditable = editor.getAttribute('contenteditable');
+    if (contentEditable === 'false') {
+      return false;
+    }
+
+    // Method 2: Check CodeMirror state for readOnly
+    let editorView = null;
+
+    if (editor.cmView?.view) {
+      editorView = editor.cmView.view;
+    } else if (editor.state?.doc) {
+      editorView = editor;
+    } else if (editor.CodeMirror) {
+      editorView = editor.CodeMirror;
+    } else if (editor.parentElement?.cmView?.view) {
+      editorView = editor.parentElement.cmView.view;
+    }
+
+    // Walk up the DOM tree to find the EditorView
+    if (!editorView) {
+      let element = editor;
+      let depth = 0;
+      while (element && !editorView && depth < Config.EXTRACTION.MAX_DOM_DEPTH) {
+        if (element.cmView?.view) {
+          editorView = element.cmView.view;
+          break;
+        }
+        if (element.state?.doc) {
+          editorView = element;
+          break;
+        }
+        element = element.parentElement;
+        depth++;
+      }
+    }
+
+    // Check if editor has readOnly state
+    if (editorView?.state) {
+      // Check for readOnly extension in state
+      const readOnly = editorView.state.facet?.(editorView.state.facet.of?.({}))?.readOnly;
+      if (readOnly === true) {
+        return false;
+      }
+
+      // Check for editable facet
+      const editable = editorView.state.facet?.editable;
+      if (editable === false) {
+        return false;
+      }
+    }
+
+    // Method 3: Check if the editor has aria-readonly attribute
+    const ariaReadOnly = editor.getAttribute('aria-readonly');
+    if (ariaReadOnly === 'true') {
+      return false;
+    }
+
+    // Method 4: Check parent container for read-only indicators
+    const container = editor.closest('.cm-editor');
+    if (container) {
+      const classes = container.className || '';
+      if (classes.includes('cm-readonly') || classes.includes('read-only')) {
+        return false;
+      }
+    }
+
+    // Default to editable if no read-only indicators found
+    return true;
+  } catch (e) {
+    Logger.debug('Error checking if editor is editable:', e);
+    // If we can't determine, assume it's editable
+    return true;
   }
 }
 
