@@ -276,7 +276,7 @@ A: Yes! Configure different databases for challenges, lessons, and other types.
 A: Yes! It extracts any challenge or lesson you have access to. If you don't have access to the solution, the solution will not be extracted.
 
 **Q: Is my data safe?**  
-A: Absolutely. Nothing is collected or sent anywhere except your chosen Notion database. The extension does not read the local storage either were cached exercises are stored.
+A: Absolutely. Nothing is collected or sent anywhere except your chosen Notion database.
 
 **Q: Can I customize the export format?**  
 A: Currently Markdown, JSON, and plain text are supported. Custom templates coming soon!
@@ -294,5 +294,5 @@ Made with ❤️ by a Boot.dev student, for Boot.dev students.
 ## 📬 Contact
 
 - GitHub: [@depuschm](https://github.com/depuschm)
-- Email: depuschm@gmx.de
 - Boot.dev: [@depuschm](https://boot.dev/u/depuschm)
+- My Contact Form: https://dietmarpuschmann.com/contact
