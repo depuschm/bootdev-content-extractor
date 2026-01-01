@@ -1087,9 +1087,6 @@ async function extractAllTabs(data, settings) {
       }
     }
 
-    // Extract code from this editor (user's code)
-    const code = await extractCodeFromEditor(editor);
-
     // Check solution button state for THIS tab
     const solutionButton = Array.from(document.querySelectorAll('button')).find(btn => {
       const text = btn.textContent.trim();
@@ -1097,24 +1094,46 @@ async function extractAllTabs(data, settings) {
         btn.querySelector('.lucide-eye');
     });
     const isSolutionDisabled = solutionButton && solutionButton.hasAttribute('disabled');
+    const isSolutionOpen = solutionButton && solutionButton.classList.contains('bg-texture-yellow');
 
-    console.log(`  Solution button state: ${isSolutionDisabled ? 'DISABLED' : 'ENABLED'}`);
+    console.log(`  Solution button state: ${isSolutionDisabled ? 'DISABLED' : isSolutionOpen ? 'ALREADY OPEN' : 'ENABLED'}`);
+
+    // Extract code from this editor (user's code)
+    const code = await extractCodeFromEditor(editor);
     console.log(`  ✅ Captured: ${fileName} (${fileLanguage}) - ${code.split('\n').length} lines${!isSolutionDisabled ? ' [USER SOLUTION]' : ''}`);
 
-    // Auto-open solution if solution button is NOT disabled (for this tab)
+    // Extract official solution if enabled and available
     let officialSolutionCode = null;
-    if (settings.autoOpenSolution && settings.extractSolution && !isSolutionDisabled) {
-      const opened = await autoOpenSolution(data.exerciseType);
-      if (opened) {
-        // Extract official solution from merge view
+
+    if (settings.extractSolution && !isSolutionDisabled) {
+      // Check if solution is already open
+      if (isSolutionOpen) {
+        console.log('  💡 Solution already open - extracting from merge view...');
         const mergeView = document.querySelector('.cm-mergeView');
         if (mergeView) {
           const editors = mergeView.querySelectorAll('.cm-mergeViewEditor .cm-editor');
           if (editors.length >= 2) {
-            console.log('  💡 Solution view detected – capturing right-side editor...');
             const rightEditor = editors[1];
             officialSolutionCode = await extractCodeFromEditor(rightEditor);
             console.log(`  ✅ Captured official solution: ${officialSolutionCode.split('\n').length} lines`);
+          }
+        } else {
+          console.log('  ⚠️ Solution appears open but merge view not found');
+        }
+      } else if (settings.autoOpenSolution) {
+        // Solution is not open and auto-open is enabled - open it
+        const opened = await autoOpenSolution(data.exerciseType);
+        if (opened) {
+          // Extract official solution from merge view
+          const mergeView = document.querySelector('.cm-mergeView');
+          if (mergeView) {
+            const editors = mergeView.querySelectorAll('.cm-mergeViewEditor .cm-editor');
+            if (editors.length >= 2) {
+              console.log('  💡 Solution view detected – capturing right-side editor...');
+              const rightEditor = editors[1];
+              officialSolutionCode = await extractCodeFromEditor(rightEditor);
+              console.log(`  ✅ Captured official solution: ${officialSolutionCode.split('\n').length} lines`);
+            }
           }
         }
       }
