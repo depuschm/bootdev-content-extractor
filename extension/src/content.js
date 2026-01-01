@@ -64,6 +64,23 @@ async function autoOpenSolution(exerciseType) {
   Logger.emoji(Config.LOG.AUTO_OPENING_SOLUTION);
 
   try {
+    // Pre-emptively inject CSS to hide Seer Stone modal BEFORE we do anything
+    // This must happen synchronously before any button clicking
+    let styleElement = document.getElementById('bootdev-extractor-modal-hide');
+    if (!styleElement) {
+      styleElement = document.createElement('style');
+      styleElement.id = 'bootdev-extractor-modal-hide';
+      styleElement.textContent = `
+        dialog[open]:has(img[src*="seer-stone"]) {
+          display: none !important;
+        }
+        dialog:has(img[src*="seer-stone"]) {
+          display: none !important;
+        }
+      `;
+      document.head.appendChild(styleElement);
+    }
+
     let solutionButton = null;
     let waitForCondition = null;
 
@@ -134,6 +151,7 @@ async function autoOpenSolution(exerciseType) {
 
     if (solutionButton) {
       Logger.debug('Found solution button, clicking...');
+
       solutionButton.click();
 
       // Check if Seer Stone modal appeared after clicking
@@ -160,8 +178,15 @@ async function autoOpenSolution(exerciseType) {
           }
         }
 
+        // Wait a moment for modal to close, then clean up the style
+        await new Promise(r => setTimeout(r, 100));
+        styleElement.remove();
+
         return false; // Solution not available
       }
+
+      // Clean up the style element if no modal appeared
+      styleElement.remove();
 
       // Wait for the solution content to actually appear
       if (waitForCondition) {
@@ -179,10 +204,19 @@ async function autoOpenSolution(exerciseType) {
       }
     } else {
       Logger.debug('No solution button found or solution already open');
+      // Clean up style if we didn't use it
+      if (styleElement) {
+        styleElement.remove();
+      }
       return false;
     }
   } catch (e) {
     Logger.error('Error auto-opening solution:', e);
+    // Clean up style on error
+    const styleElement = document.getElementById('bootdev-extractor-modal-hide');
+    if (styleElement) {
+      styleElement.remove();
+    }
     return false;
   }
 }
