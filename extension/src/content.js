@@ -422,12 +422,7 @@ async function extractContent() {
     data.exerciseType = Config.EXERCISE_TYPES.CODING;
     Logger.emoji(Config.LOG.DETECTED_CODING);
 
-    // Auto-open solution if enabled (for coding exercises)
-    if (settings.autoOpenSolution && settings.extractSolution) {
-      await autoOpenSolution(data.exerciseType);
-    }
-
-    await extractAllTabs(data);
+    await extractAllTabs(data, settings);
 
     // IMPROVED: After extracting all files, set the language from actual file extensions
     if (data.allFiles && data.allFiles.length > 0) {
@@ -444,9 +439,19 @@ async function extractContent() {
         data.language = data.allFiles[0].language;
       }
 
-      // Set userCode from main file
-      if (mainFile) {
+      // Set userCode: find the first file where solution button was NOT disabled
+      const userSolutionFile = data.allFiles.find(f => f.hasUserSolution);
+      if (userSolutionFile) {
+        data.userCode = userSolutionFile.code;
+        Logger.extraction('My Solution Attempt (from user code)', {
+          chars: data.userCode.length
+        });
+      } else if (mainFile) {
+        // Fallback to main file (for coding exercises without solution button)
         data.userCode = mainFile.code;
+        Logger.extraction('My Solution Attempt (fallback)', {
+          chars: data.userCode.length
+        });
       }
     }
   }
@@ -461,7 +466,19 @@ async function extractContent() {
       // CLI exercises don't have traditional solutions
       data.solution = Config.MESSAGES.SOLUTION_NOT_AVAILABLE;
     } else {
-      await extractSolution(data);
+      // For coding exercises, check if we extracted any official solutions from tabs
+      const officialSolutionFile = data.allFiles && data.allFiles.find(f => f.officialSolution);
+      console.log(officialSolutionFile);
+      if (officialSolutionFile) {
+        data.solution = officialSolutionFile.officialSolution;
+        Logger.extraction('Official Solution', {
+          from: officialSolutionFile.fileName,
+          chars: data.solution.length
+        });
+      } else {
+        data.solution = Config.MESSAGES.SOLUTION_NOT_AVAILABLE;
+        Logger.debug('No official solution extracted from any tab');
+      }
     }
   }
 
@@ -997,7 +1014,7 @@ async function extractViewerContent(data) {
 }
 
 // Extract code from all editor tabs
-async function extractAllTabs(data) {
+async function extractAllTabs(data, settings) {
   // Find all tab buttons
   const tabButtons = Array.from(document.querySelectorAll('ul[role="tablist"] button'));
   const initialTab = tabButtons.find(b => b.getAttribute('aria-selected') === 'true') || tabButtons[0];
@@ -1022,9 +1039,9 @@ async function extractAllTabs(data) {
     // Wait just one animation frame for the DOM to update
     await waitForFrame();
 
-    // Find the main editor container (exclude merge view editors)
+    // Find the main editor container (exclude merge view editors if not extracting solution)
     const editor = await waitForElement(() => {
-      // First, check if we're in solution/merge view - if so, skip to avoid confusion
+      // Check if we're in solution/merge view
       const mergeView = document.querySelector('.cm-mergeView');
       if (mergeView) {
         // In merge view, the LEFT editor is the user's code
@@ -1070,17 +1087,49 @@ async function extractAllTabs(data) {
       }
     }
 
-    // Extract code from this editor
+    // Extract code from this editor (user's code)
     const code = await extractCodeFromEditor(editor);
 
-    codeFiles.push({
+    // Check solution button state for THIS tab
+    const solutionButton = Array.from(document.querySelectorAll('button')).find(btn => {
+      const text = btn.textContent.trim();
+      return (text === 'Solution' || text.includes('Show Solution') || text.includes('View Solution')) &&
+        btn.querySelector('.lucide-eye');
+    });
+    const isSolutionDisabled = solutionButton && solutionButton.hasAttribute('disabled');
+
+    console.log(`  Solution button state: ${isSolutionDisabled ? 'DISABLED' : 'ENABLED'}`);
+    console.log(`  ✅ Captured: ${fileName} (${fileLanguage}) - ${code.split('\n').length} lines${!isSolutionDisabled ? ' [USER SOLUTION]' : ''}`);
+
+    // Auto-open solution if solution button is NOT disabled (for this tab)
+    let officialSolutionCode = null;
+    if (settings.autoOpenSolution && settings.extractSolution && !isSolutionDisabled) {
+      const opened = await autoOpenSolution(data.exerciseType);
+      if (opened) {
+        // Extract official solution from merge view
+        const mergeView = document.querySelector('.cm-mergeView');
+        if (mergeView) {
+          const editors = mergeView.querySelectorAll('.cm-mergeViewEditor .cm-editor');
+          if (editors.length >= 2) {
+            console.log('  💡 Solution view detected – capturing right-side editor...');
+            const rightEditor = editors[1];
+            officialSolutionCode = await extractCodeFromEditor(rightEditor);
+            console.log(`  ✅ Captured official solution: ${officialSolutionCode.split('\n').length} lines`);
+          }
+        }
+      }
+    }
+
+    const fileData = {
       fileName: fileName,
       code: code,
       language: fileLanguage,
-      isActive: i === tabButtons.findIndex(b => b === initialTab)
-    });
+      isActive: i === tabButtons.findIndex(b => b === initialTab),
+      hasUserSolution: !isSolutionDisabled, // Mark if this tab has user's solution
+      officialSolution: officialSolutionCode // Store official solution if extracted
+    };
 
-    console.log(`  ✅ Captured: ${fileName} (${fileLanguage}) - ${code.split('\n').length} lines`);
+    codeFiles.push(fileData);
   }
 
   // Return to initial tab
@@ -1103,7 +1152,7 @@ async function extractSolution(data) {
     if (mergeView) {
       const editors = mergeView.querySelectorAll('.cm-mergeViewEditor .cm-editor');
       if (editors.length >= 2) {
-        console.log('\n💡 Solution view detected — capturing right-side editor...');
+        console.log('\n💡 Solution view detected – capturing right-side editor...');
         const rightEditor = editors[1];
         const solutionCode = await extractCodeFromEditor(rightEditor);
 
