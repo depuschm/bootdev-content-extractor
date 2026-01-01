@@ -35,7 +35,7 @@ If you choose to enable Notion integration:
 - We never have access to your token or your Notion data
 - All communication with Notion is direct from your browser to their servers
 
-Notion's handling of your data is governed by [Notion's Privacy Policy](https://www.notion.so/Privacy-Policy).
+Notion's handling of your data is governed by [Notion's Privacy Policy](https://privacycenter.notion.so/policies).
 
 ## Local Data Storage
 
