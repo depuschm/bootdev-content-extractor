@@ -496,7 +496,6 @@ async function extractContent() {
     } else {
       // For coding exercises, check if we extracted any official solutions from tabs
       const officialSolutionFile = data.allFiles && data.allFiles.find(f => f.officialSolution);
-      console.log(officialSolutionFile);
       if (officialSolutionFile) {
         data.solution = officialSolutionFile.officialSolution;
         Logger.extraction('Official Solution', {

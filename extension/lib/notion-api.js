@@ -59,6 +59,16 @@ const NotionAPI = {
       };
     }
 
+    // Add Date property if timestamp exists
+    if (content.timestamp) {
+      // Use the full ISO timestamp with time
+      properties['Date'] = {
+        date: {
+          start: content.timestamp // Full ISO format
+        }
+      };
+    }
+
     // Add Rating property if rating exists and is greater than 0
     if (content.rating && content.rating > 0) {
       properties['Rating'] = {
