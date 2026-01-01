@@ -256,10 +256,12 @@ function formatData(data, format) {
         });
       }
 
-      if (data.userCode && data.userCode.trim() !== 'pass') {
-        const lang = data.language || 'python';
-        markdown += `## My Solution Attempt\n\`\`\`${lang}\n${data.userCode}\n\`\`\`\n\n`;
-      }
+      // User solution attempt is not shown, since it is always the same as code file
+      // In a future version when I know how to extract initial code from code mirror editor both files can be shown
+      // if (data.userCode && data.userCode !== initialCode.code && data.userCode.trim() !== 'pass') {
+      //   const lang = data.language || 'python';
+      //   markdown += `## My Solution Attempt\n\`\`\`${lang}\n${data.userCode}\n\`\`\`\n\n`;
+      // }
 
       if (data.solution && !data.solution.includes('not available')) {
         const lang = data.language || 'python';
@@ -400,9 +402,11 @@ function formatData(data, format) {
         });
       }
 
-      if (data.userCode && data.userCode.trim() !== 'pass') {
-        text += `MY SOLUTION ATTEMPT:\n${data.userCode}\n\n`;
-      }
+      // User solution attempt is not shown, since it is always the same as code file
+      // In a future version when I know how to extract initial code from code mirror editor both files can be shown
+      // if (data.userCode && data.userCode !== initialCode.code && data.userCode.trim() !== 'pass') {
+      //   text += `MY SOLUTION ATTEMPT:\n${data.userCode}\n\n`;
+      // }
 
       if (data.solution && !data.solution.includes('not available')) {
         text += `OFFICIAL SOLUTION:\n${data.solution}\n\n`;
