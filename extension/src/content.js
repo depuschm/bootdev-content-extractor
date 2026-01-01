@@ -446,12 +446,6 @@ async function extractContent() {
         Logger.extraction('My Solution Attempt (from user code)', {
           chars: data.userCode.length
         });
-      } else if (mainFile) {
-        // Fallback to main file (for coding exercises without solution button, maybe remove this part later)
-        data.userCode = mainFile.code;
-        Logger.extraction('My Solution Attempt (fallback)', {
-          chars: data.userCode.length
-        });
       }
     }
   }
