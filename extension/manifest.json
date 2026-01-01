@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Boot.dev Content Extractor",
   "version": "1.2.0",
-  "description": "Extract challenges and lessons from Boot.dev and send to Notion",
+  "description": "Never lose your coding progress again! Extract challenges, lessons, solutions, and chat conversations from Boot.dev and save them to Notion, Markdown, or JSON.",
   "permissions": [
     "activeTab",
     "storage"
