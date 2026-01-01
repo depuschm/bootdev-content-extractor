@@ -212,11 +212,15 @@ Access via **Options** button in the popup:
 - `boot.dev/*` - Access Boot.dev pages
 - `api.notion.com/*` - Send to Notion (optional)
 
-### Privacy
-- **No tracking** - Zero analytics or data collection
-- **Local processing** - All extraction happens in your browser
-- **Your data** - Nothing is sent anywhere except Notion (if you enable it)
-- **Open source** - Audit the code yourself!
+## 🔒 Privacy & Security
+
+Your privacy matters. This extension:
+- ✅ **No tracking** - Zero data collection
+- ✅ **Local processing** - Everything happens in your browser
+- ✅ **Open source** - [Audit the code](https://github.com/depuschm/bootdev-content-extractor)
+- ✅ **Optional Notion** - You control what gets sent
+
+📜 **[Read our full Privacy Policy](https://depuschm.github.io/bootdev-content-extractor/privacy-policy.html)**
 
 ---
 
